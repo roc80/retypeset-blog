@@ -1,5 +1,36 @@
 ---
+title: AboutMe
 lang: zh
 ---
 
-Retypeset 是一款基于 [Astro](https://astro.build/) 框架的静态博客主题，中文名为重新编排。本主题以 [活版印字](https://astro-theme-typography.vercel.app/) 为设计灵感，通过建立全新的视觉规范，对所有页面进行重新编排，打造纸质书页般的阅读体验，再现版式之美。所见皆为细节，方寸尽显优雅。
+## 👋 Hello, Here is Roc's Space
+
+Welcome to my personal website, which records my learning, development and life experiences.
+
+### 🤖 Stack
+
+- **Backend**：Java / Spring Boot / MySQL / Redis
+- **Frontend**：Vue / Antd
+
+### 📂 My Content
+
+- 🪐 [Blog](/)
+- 🎯 [Projects](https://github.com/roc80)
+- 📡 [Contacts me](mailto:lipeng_8080@163.com)
+
+### 🚀 Activity
+
+- 🌐 2025.06.10 | Build My Blog Based on Astro
+- 🎯 2025.06.30 | [user center](https://user.rocli.cn)
+- 🎯 2025.06.30 | [find friends](https://find-friends.rocli.cn)
+- 💼 2025.07.21 | Get My First Backend Development Work
+
+---
+
+### TimeLine
+
+- 🌱 2022.04：Start exploring the CS world
+- 🎓 2023.06：Bachelor of GIS
+- 💼 2023.07：[10jqka.com.cn](https://www.10jqka.com.cn/) B2B Android Developer
+- 🧭 2025.03：Quit without a new job lined up and from android to backend
+- 📍&ensp;  2025.05：Hangzhou -> Xian

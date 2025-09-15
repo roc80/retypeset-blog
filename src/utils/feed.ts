@@ -149,7 +149,7 @@ export async function generateFeed({ lang }: { lang?: string } = {}) {
 
   // Sort posts by published date in descending order and limit to the latest 25
   const recentPosts = [...posts]
-    .sort((a, b) => new Date(b.data.published).getTime() - new Date(a.data.published).getTime())
+    .sort((a, b) => new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime())
     .slice(0, 25)
 
   // Add posts to feed
@@ -173,7 +173,7 @@ export async function generateFeed({ lang }: { lang?: string } = {}) {
       : ''
 
     // publishDate -> Atom:<published>, RSS:<pubDate>
-    const publishDate = new Date(post.data.published)
+    const publishDate = new Date(post.data.pubDate)
     // updateDate -> Atom:<updated>, RSS has no update tag
     const updateDate = post.data.updated ? new Date(post.data.updated) : publishDate
 

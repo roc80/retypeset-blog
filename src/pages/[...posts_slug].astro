@@ -129,7 +129,7 @@ const { Content, headings, remarkPluginFrontmatter } = await render(post)
       data-disable-theme-transition
     >
       <PostDate
-        date={post.data.published}
+        date={post.data.pubDate}
         updatedDate={post.data.updated}
         minutes={remarkPluginFrontmatter.minutes}
       />

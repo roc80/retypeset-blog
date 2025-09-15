@@ -59,7 +59,7 @@ export interface Props {
           data-disable-theme-transition
         >
           <PostDate
-            date={post.data.published}
+            date={post.data.pubDate}
             minutes={post.remarkPluginFrontmatter.minutes}
           />
         </div>
@@ -67,7 +67,7 @@ export interface Props {
         {/* desktop post time */}
         <div class="hidden text-3.65 font-time lg:(ml-2.5 inline)">
           <PostDate
-            date={post.data.published}
+            date={post.data.pubDate}
             minutes={post.remarkPluginFrontmatter.minutes}
           />
         </div>

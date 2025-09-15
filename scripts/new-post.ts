@@ -28,7 +28,7 @@ mkdirSync(dirname(fullPath), { recursive: true })
 // Prepare file content
 const content = `---
 title: ${baseName}
-published: ${new Date().toISOString()}
+pubDate: ${new Date().toISOString()}
 description: ''
 updated: ''
 tags:

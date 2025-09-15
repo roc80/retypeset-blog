@@ -94,7 +94,7 @@ async function _getPosts(lang?: string) {
   const enhancedPosts = await Promise.all(filteredPosts.map(addMetaToPost))
 
   return enhancedPosts.sort((a: Post, b: Post) =>
-    b.data.published.valueOf() - a.data.published.valueOf(),
+    b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
   )
 }
 
@@ -139,7 +139,7 @@ async function _getPostsByYear(lang?: string): Promise<Map<number, Post[]>> {
   const yearMap = new Map<number, Post[]>()
 
   posts.forEach((post: Post) => {
-    const year = post.data.published.getFullYear()
+    const year = post.data.pubDate.getFullYear()
     if (!yearMap.has(year)) {
       yearMap.set(year, [])
     }
@@ -149,8 +149,8 @@ async function _getPostsByYear(lang?: string): Promise<Map<number, Post[]>> {
   // Sort posts within each year by date
   yearMap.forEach((yearPosts) => {
     yearPosts.sort((a, b) => {
-      const aDate = a.data.published
-      const bDate = b.data.published
+      const aDate = a.data.pubDate
+      const bDate = b.data.pubDate
       return bDate.getMonth() - aDate.getMonth() || bDate.getDate() - aDate.getDate()
     })
   })
