@@ -14,7 +14,7 @@ export const themeConfig: ThemeConfig = {
     // author name
     author: 'Roc',
     // site url
-    url: 'https://roc80.github.io',
+    url: 'https://rocli.cn',
     // base path
     // root directory for all pages and assets
     base: '/', // e.g., '/blog', '/docs'
