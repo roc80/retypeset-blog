@@ -174,7 +174,7 @@ export async function generateFeed({ lang }: { lang?: string } = {}) {
     // publishDate -> Atom:<published>, RSS:<pubDate>
     const publishDate = new Date(post.data.pubDate)
     // updateDate -> Atom:<updated>, RSS has no update tag
-    const updateDate = post.data.updated ? new Date(post.data.updated) : publishDate
+    // const updateDate = post.data.updated ? new Date(post.data.updated) : publishDate
 
     feed.addItem({
       title: post.data.title,
@@ -187,7 +187,7 @@ export async function generateFeed({ lang }: { lang?: string } = {}) {
         link: `${url}${base}/`,
       }],
       published: publishDate,
-      date: updateDate,
+      date: publishDate,
     })
   }
 
