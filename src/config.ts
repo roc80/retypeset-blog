@@ -164,7 +164,7 @@ export const themeConfig: ThemeConfig = {
     links: [
       {
         name: 'RSS',
-        url: '/atom.xml', // or /rss.xml
+        url: '/rss.xml',
       },
       {
         name: 'GitHub',

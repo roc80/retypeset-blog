@@ -150,7 +150,6 @@ export async function generateFeed({ lang }: { lang?: string } = {}) {
   // Sort posts by published date in descending order and limit to the latest 25
   const recentPosts = [...posts]
     .sort((a, b) => new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime())
-    .slice(0, 25)
 
   // Add posts to feed
   for (const post of recentPosts) {
