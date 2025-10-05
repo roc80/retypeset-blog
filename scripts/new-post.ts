@@ -6,6 +6,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
 import process from 'node:process'
+import dayjs from 'dayjs'
 import { themeConfig } from '../src/config'
 
 // Process file path
@@ -28,7 +29,7 @@ mkdirSync(dirname(fullPath), { recursive: true })
 // Prepare file content
 const content = `---
 title: ${baseName}
-pubDate: ${new Date().toISOString()}
+pubDate: ${dayjs().format('YYYY-MM-DD HH:mm:ss')};
 description: ''
 updated: ''
 tags:

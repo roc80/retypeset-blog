@@ -37,6 +37,9 @@ importers:
       canvaskit-wasm:
         specifier: ^0.40.0
         version: 0.40.0
+      dayjs:
+        specifier: ^1.11.18
+        version: 1.11.18
       feed:
         specifier: ^5.1.0
         version: 5.1.0
