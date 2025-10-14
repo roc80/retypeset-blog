@@ -4,16 +4,15 @@ import { getTagPath } from '@/i18n/path'
 interface Props {
   tags: string[]
   currentTag?: string
-  lang: string
 }
 
-const { tags, currentTag = '', lang } = Astro.props;
+const { tags, currentTag = '' } = Astro.props;
 ---
 
 <div class="no-heti flex flex-wrap gap-x-3 gap-y-3.2">
   {tags.map(tag => (
     <a
-      href={getTagPath(tag, lang)}
+      href={getTagPath(tag)}
       class:list={[
         currentTag === tag
           ? 'border-secondary/80 c-primary font-medium ring-0.2'

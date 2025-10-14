@@ -1,5 +1,4 @@
-import { base, moreLocales } from '@/config'
-import { getLangFromPath } from '@/i18n/lang'
+import { base } from '@/config'
 import { getLocalizedPath } from '@/i18n/path'
 
 // Checks if normalized path matches a specific page type
@@ -12,11 +11,10 @@ function isPageType(path: string, prefix: string = '') {
   const normalizedPath = pathWithoutBase.replace(/^\/|\/$/g, '')
 
   if (prefix === '') {
-    return normalizedPath === '' || moreLocales.includes(normalizedPath)
+    return normalizedPath === ''
   }
 
   return normalizedPath.startsWith(prefix)
-    || moreLocales.some(lang => normalizedPath.startsWith(`${lang}/${prefix}`))
 }
 
 export function isHomePage(path: string) {
@@ -35,21 +33,25 @@ export function isAboutPage(path: string) {
   return isPageType(path, 'about')
 }
 
-// Returns page context with language, page types and localization helper
+export function isWeeksPage(path: string) {
+  return isPageType(path, 'weeks')
+}
+
+// Returns page context with page types and localization helper
 export function getPageInfo(path: string) {
-  const currentLang = getLangFromPath(path)
   const isHome = isHomePage(path)
   const isPost = isPostPage(path)
   const isTag = isTagPage(path)
   const isAbout = isAboutPage(path)
+  const isWeeks = isWeeksPage(path)
 
   return {
-    currentLang,
     isHome,
     isPost,
     isTag,
     isAbout,
+    isWeeks,
     getLocalizedPath: (targetPath: string) =>
-      getLocalizedPath(targetPath, currentLang),
+      getLocalizedPath(targetPath),
   }
 }

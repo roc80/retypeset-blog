@@ -1,111 +1,49 @@
-import { base, defaultLocale, moreLocales } from '@/config'
-import { getLangFromPath, getNextGlobalLang } from '@/i18n/lang'
+import { base } from '@/config'
 
 /**
- * Get path to a specific tag page with language support
+ * Get path to a specific tag page
  *
  * @param tagName Tag name
- * @param lang Current language code
  * @returns Path to tag page
  */
-export function getTagPath(tagName: string, lang: string): string {
-  const tagPath = lang === defaultLocale
-    ? `/tags/${tagName}/`
-    : `/${lang}/tags/${tagName}/`
-
+export function getTagPath(tagName: string): string {
+  const tagPath = `/tags/${tagName}/`
   return base ? `${base}${tagPath}` : tagPath
 }
 
 /**
- * Get path to a specific post page with language support
+ * Get path to a specific post page
  *
  * @param slug Post slug
- * @param lang Current language code
  * @returns Path to post page
  */
-export function getPostPath(slug: string, lang: string): string {
-  const postPath = lang === defaultLocale
-    ? `/posts/${slug}/`
-    : `/${lang}/posts/${slug}/`
-
+export function getPostPath(slug: string): string {
+  const postPath = `/posts/${slug}/`
   return base ? `${base}${postPath}` : postPath
 }
 
 /**
- * Generate localized path based on current language
+ * Get path to a specific week page
+ *
+ * @param slug Week slug
+ * @returns Path to week page
+ */
+export function getWeekPath(slug: string): string {
+  const weekPath = `/weeks/${slug}/`
+  return base ? `${base}${weekPath}` : weekPath
+}
+
+/**
+ * Generate localized path
  *
  * @param path Path to localize
- * @param currentLang Current language code
- * @returns Localized path with language prefix
+ * @returns Localized path
  */
-export function getLocalizedPath(path: string, currentLang?: string) {
+export function getLocalizedPath(path: string): string {
   const normalizedPath = path.replace(/^\/|\/$/g, '')
-  const lang = currentLang ?? getLangFromPath(path)
-
-  const langPrefix = lang === defaultLocale ? '' : `/${lang}`
   const localizedPath = normalizedPath === ''
-    ? `${langPrefix}/`
-    : `${langPrefix}/${normalizedPath}/`
+    ? `/`
+    : `/${normalizedPath}/`
 
   return base ? `${base}${localizedPath}` : localizedPath
-}
-
-/**
- * Build path for next language
- *
- * @param currentPath Current page path
- * @param currentLang Current language code
- * @param nextLang Next language code to switch to
- * @returns Path for next language
- */
-export function getNextLangPath(currentPath: string, currentLang: string, nextLang: string): string {
-  const pathWithoutBase = base && currentPath.startsWith(base)
-    ? currentPath.slice(base.length)
-    : currentPath
-
-  const pagePath = currentLang === defaultLocale
-    ? pathWithoutBase
-    : pathWithoutBase.replace(`/${currentLang}`, '')
-
-  return getLocalizedPath(pagePath, nextLang)
-}
-
-/**
- * Get next language path from global language list
- *
- * @param currentPath Current page path
- * @returns Path for next supported language
- */
-export function getNextGlobalLangPath(currentPath: string): string {
-  const currentLang = getLangFromPath(currentPath)
-  const nextLang = getNextGlobalLang(currentLang)
-  return getNextLangPath(currentPath, currentLang, nextLang)
-}
-
-/**
- * Get next language path from supported language list
- *
- * @param currentPath Current page path
- * @param supportedLangs List of supported language codes
- * @returns Path for next supported language
- */
-export function getNextSupportedLangPath(currentPath: string, supportedLangs: string[]): string {
-  if (supportedLangs.length === 0) {
-    return getNextGlobalLangPath(currentPath)
-  }
-
-  // Sort supported languages by global priority
-  const langPriority = new Map(
-    [defaultLocale, ...moreLocales].map((lang, index) => [lang, index]),
-  )
-  const sortedLangs = [...supportedLangs].sort(
-    (a, b) => (langPriority.get(a) ?? 0) - (langPriority.get(b) ?? 0),
-  )
-
-  // Get current language and next in cycle
-  const currentLang = getLangFromPath(currentPath)
-  const currentIndex = sortedLangs.indexOf(currentLang)
-  const nextLang = sortedLangs[(currentIndex + 1) % sortedLangs.length]
-
-  return getNextLangPath(currentPath, currentLang, nextLang)
 }

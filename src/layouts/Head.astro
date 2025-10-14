@@ -1,9 +1,8 @@
 ---
 import { ClientRouter } from 'astro:transitions'
 import katexCSS from 'katex/dist/katex.min.css?url'
-import { allLocales, base, defaultLocale, themeConfig } from '@/config'
+import { base, themeConfig } from '@/config'
 import { ui } from '@/i18n/ui'
-import { getPageInfo } from '@/utils/page'
 
 interface Props {
   postTitle?: string
@@ -13,12 +12,10 @@ interface Props {
 
 // Props and Language
 const { postTitle, postDescription, postSlug } = Astro.props
-const { currentLang } = getPageInfo(Astro.url.pathname)
-const currentUI = ui[currentLang as keyof typeof ui] ?? {}
-const lang = currentLang === defaultLocale ? '' : `${currentLang}/`
+const currentUI = ui.zh ?? {}
 
 // Site Configuration
-const { title, subtitle, description, i18nTitle, author, favicon } = themeConfig.site
+const { title, subtitle, description, author, favicon } = themeConfig.site
 const { mode: defaultMode, light: { background: lightMode }, dark: { background: darkMode } } = themeConfig.color
 const { katex: katexEnabled, reduceMotion } = themeConfig.global
 const { verification = {}, twitterID = '', googleAnalyticsID = '', umamiAnalyticsID = '', apiflashKey = '' } = themeConfig.seo ?? {}
@@ -27,9 +24,9 @@ const { customGoogleAnalyticsJS = '', customUmamiAnalyticsJS = '' } = themeConfi
 
 // Site Metadata
 const metaTheme = defaultMode === 'dark' ? darkMode : lightMode
-const siteTitle = i18nTitle ? currentUI.title : title
-const siteSubtitle = i18nTitle ? currentUI.subtitle : subtitle
-const siteDescription = i18nTitle ? currentUI.description : description
+const siteTitle = title
+const siteSubtitle = subtitle
+const siteDescription = description
 
 // Page Metadata
 const pageTitle = postTitle ? `${postTitle} | ${siteTitle}` : `${siteTitle} - ${siteSubtitle}`
@@ -37,8 +34,8 @@ const pageDescription = postDescription || siteDescription
 const pageImage = postSlug
   ? `${Astro.url.origin}${base}/og/${postSlug}.png`
   : apiflashKey
-    ? `https://api.apiflash.com/v1/urltoimage?access_key=${apiflashKey}&url=${Astro.url.origin}${base}/${lang}&format=png&width=1500&height=788&ttl=86400&wait_until=network_idle&no_tracking=true`
-    : `https://api.apiflash.com/v1/urltoimage?access_key=02a837b6188f4ba0a7fd9fbeff03a83e&url=https://retypeset.radishzz.cc/${lang}&format=png&width=1500&height=788&ttl=172800&wait_until=network_idle&no_tracking=true`
+    ? `https://api.apiflash.com/v1/urltoimage?access_key=${apiflashKey}&url=${Astro.url.origin}${base}/&format=png&width=1500&height=788&ttl=86400&wait_until=network_idle&no_tracking=true`
+    : `https://api.apiflash.com/v1/urltoimage?access_key=02a837b6188f4ba0a7fd9fbeff03a83e&url=https://retypeset.radishzz.cc/&format=png&width=1500&height=788&ttl=172800&wait_until=network_idle&no_tracking=true`
 ---
 
 <head>
@@ -57,18 +54,16 @@ const pageImage = postSlug
 <!-- Preload -->
 {katexEnabled && <link rel="stylesheet" href={katexCSS} media="print" onload={`this.media='all'`} />}
 
+<!-- Font Preload - Prevent FOUT -->
+<link rel="preload" href="/fonts/LXGWWenKai-Regular.ttf" as="font" type="font/ttf" crossorigin="anonymous" />
+<link rel="preload" href="/fonts/LXGWWenKai-Light.ttf" as="font" type="font/ttf" crossorigin="anonymous" />
+<link rel="preload" href="/fonts/LXGWWenKai-Medium.ttf" as="font" type="font/ttf" crossorigin="anonymous" />
+
 <!-- Site Links -->
 <link rel="canonical" href={Astro.url} />
 <link rel="sitemap" href={`${base}/sitemap-index.xml`} />
 <link rel="alternate" href={`${base}/rss.xml`} type="application/rss+xml" title="RSS Feed" />
 <link rel="alternate" href={`${base}/atom.xml`} type="application/atom+xml" title="Atom Feed" />
-{allLocales.map(lang => (
-  <link
-    rel="alternate"
-    href={`${Astro.url.origin}${base}${lang === defaultLocale ? '' : `/${lang}/`}`}
-    hreflang={lang === 'zh-tw' ? 'zh-TW' : lang}
-  />
-))}
 
 <!-- Open Graph -->
 <meta property="og:type" content={postTitle ? 'article' : 'website'} />
@@ -87,6 +82,42 @@ const pageImage = postSlug
 
 <!-- Global View Transition -->
 <ClientRouter fallback="none" />
+
+<!-- Font Loading Optimization -->
+<script
+  is:inline
+>
+// Optimize font loading to prevent FOUT
+(function() {
+  // Create a style element to hide text while fonts are loading
+  const style = document.createElement('style')
+  style.innerHTML = `
+    * {
+      font-display: swap;
+    }
+    body {
+      opacity: 0;
+      transition: opacity 0.1s ease-in;
+    }
+    body.fonts-loaded {
+      opacity: 1;
+    }
+  `
+  document.head.appendChild(style)
+
+  // Wait for fonts to load
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function() {
+      document.body.classList.add('fonts-loaded')
+    })
+  } else {
+    // Fallback for older browsers
+    setTimeout(function() {
+      document.body.classList.add('fonts-loaded')
+    }, 100)
+  }
+})()
+</script>
 
 <!-- Theme Toggle -->
 <script

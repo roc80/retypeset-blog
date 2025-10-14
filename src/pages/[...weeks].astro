@@ -1,0 +1,24 @@
+---
+import WeekCards from '@/components/WeekCards.astro'
+import { defaultLocale } from '@/config'
+import Layout from '@/layouts/Layout.astro'
+import { getPinnedWeeks, getWeeksByYearAndSeason } from '@/utils/content'
+
+export async function getStaticPaths() {
+  return [{
+    params: { weeks: 'weeks/' },
+    props: { lang: defaultLocale },
+  }]
+}
+
+const { lang } = Astro.props
+const pinnedWeeks = await getPinnedWeeks(lang)
+const weeksByYearAndSeason = await getWeeksByYearAndSeason(lang)
+---
+
+<Layout>
+  <WeekCards
+    weeksByYearAndSeason={weeksByYearAndSeason}
+    pinnedWeeks={pinnedWeeks}
+  />
+</Layout>

@@ -1,0 +1,334 @@
+---
+import type { CollectionEntry } from 'astro:content'
+import PostDate from '@/components/PostDate.astro'
+import { getWeekPath } from '@/i18n/path'
+import { getWeekDescription } from '@/utils/description'
+import PinIcon from '@/assets/icons/pin-icon.svg'
+
+type Week = CollectionEntry<'weeks'> & {
+  remarkPluginFrontmatter: {
+    minutes: number
+  }
+}
+
+type Season = 'spring' | 'summer' | 'autumn' | 'winter'
+
+
+
+const { weeksByYearAndSeason, pinnedWeeks = [] } = Astro.props
+
+export interface Props {
+  weeksByYearAndSeason: Map<number, Map<Season, Week[]>>
+  pinnedWeeks?: Week[]
+}
+
+function getSeasonName(season: Season): string {
+  const seasonNames = {
+    spring: '春',
+    summer: '夏',
+    autumn: '秋',
+    winter: '冬',
+  }
+  return seasonNames[season]
+}
+
+function getAllSeasons(): Season[] {
+  return ['spring', 'summer', 'autumn', 'winter']
+}
+
+function getYearTotalWeeks(seasonMap: Map<Season, Week[]>): number {
+  let total = 0
+  seasonMap.forEach((weeks) => {
+    total += weeks.length
+  })
+  return total
+}
+
+---
+
+<!-- Pinned Weeks Section -->
+{
+  pinnedWeeks.length > 0 && (
+    <section class="mb-7.5">
+      <div class="uno-decorative-line" />
+      <div class="mb-4">
+        <h2 class="text-2xl font-bold text-primary mb-2">
+          置顶周记
+        </h2>
+      </div>
+      <ul>
+        {pinnedWeeks.map((week) => {
+          const slug = week.data.abbrlink || week.id.replace(/^.*\//, '')
+
+          return (
+            <li class="mb-5.5">
+              {/* Week title */}
+              <h3 class="inline transition-colors hover:c-primary">
+                <a
+                  class="cjk:tracking-0.02em font-medium text-4"
+                  href={getWeekPath(slug)}
+                  transition:name={`week-${slug}`}
+                  data-disable-theme-transition
+                >
+                  {week.data.title}
+                </a>
+                {/* pinned icon */}
+                <PinIcon
+                  aria-hidden="true"
+                  class="ml-0.25em inline-block aspect-square w-0.98em translate-y--0.1em lg:(w-1.05em translate-y--0.15em)"
+                  fill="currentColor"
+                />
+              </h3>
+
+              {/* mobile week time */}
+              <div
+                class="py-0.8 text-3.5 font-time lg:hidden"
+                transition:name={`time-${slug}`}
+                data-disable-theme-transition
+              >
+                <PostDate
+                  date={week.data.pubDate}
+                  minutes={week.remarkPluginFrontmatter.minutes}
+                />
+              </div>
+
+              {/* desktop week time */}
+              <div class="hidden text-3.65 font-time lg:(ml-2.5 inline)">
+                <PostDate
+                  date={week.data.pubDate}
+                  minutes={week.remarkPluginFrontmatter.minutes}
+                />
+              </div>
+
+              {/* desktop week description */}
+              <div
+                class="heti hidden"
+                lg="mt-2.25 block"
+              >
+                <p>{getWeekDescription(week, 'list')}</p>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
+<!-- Years Cards Section -->
+<section class="space-y-6">
+  {Array.from(weeksByYearAndSeason.entries()).map(([year, seasonMap]) => (
+    <div class="year-card" data-year={year}>
+      <!-- Year Card -->
+      <div class="year-card-header cursor-pointer group">
+        <div class="uno-decorative-line mb-4" />
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-4">
+            <h2 class="text-2xl font-bold text-primary group-hover:c-primary transition-colors">
+              {year} 年
+            </h2>
+            <div class="text-secondary text-sm">
+              共 {getYearTotalWeeks(seasonMap)} 篇周记
+            </div>
+          </div>
+          <div class="text-secondary group-hover:c-primary transition-colors">
+            <svg
+              class="w-6 h-6 year-chevron"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Season Cards (Collapsible) -->
+      <div class="seasons-container max-h-0 overflow-hidden transition-all duration-300" data-expanded="false">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {getAllSeasons().map((season) => {
+            const seasonWeeks = seasonMap.get(season) || []
+            const seasonName = getSeasonName(season)
+
+            return (
+              <div class="season-card" data-season={season} data-weeks-count={seasonWeeks.length}>
+                <div class="season-card-header cursor-pointer group">
+                  <div class="border border-secondary/25 rounded-lg p-4 hover:border-secondary/50 transition-all duration-200 hover:shadow-md">
+                    <div class="flex items-center justify-between mb-2">
+                      <h3 class="font-semibold text-lg group-hover:c-primary transition-colors">
+                        {seasonName}
+                      </h3>
+                      <div class="text-secondary text-sm group-hover:c-primary transition-colors">
+                        <svg
+                          class="w-5 h-5 season-chevron"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div class="text-secondary text-sm mb-1">
+                      {seasonWeeks.length} 篇
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Weeks List (Collapsible) -->
+                <div class="weeks-list max-h-0 overflow-hidden transition-all duration-300" data-expanded="false">
+                  <div class="mt-2 space-y-2">
+                    {seasonWeeks.map((week) => {
+                      const slug = week.data.abbrlink || week.id.replace(/^.*\//, '')
+
+                      return (
+                        <div class="week-item p-3 bg-secondary/5 rounded-lg hover:bg-secondary/10 transition-colors">
+                          {/* Week title */}
+                          <h4 class="inline transition-colors hover:c-primary">
+                            <a
+                              class="cjk:tracking-0.02em font-medium text-3.5"
+                              href={getWeekPath(slug)}
+                              transition:name={`week-${slug}`}
+                              data-disable-theme-transition
+                            >
+                              {week.data.title}
+                            </a>
+                          </h4>
+
+                          {/* week time */}
+                          <div class="py-0.5 text-3 font-time">
+                            <PostDate
+                              date={week.data.pubDate}
+                              minutes={week.remarkPluginFrontmatter.minutes}
+                            />
+                          </div>
+
+                          {/* week description */}
+                          {week.data.description && (
+                            <div class="heti mt-1">
+                              <p class="text-secondary text-sm line-clamp-2">{getWeekDescription(week, 'list')}</p>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          )}
+        </div>
+      </div>
+    </div>
+  ))}
+</section>
+
+<style>
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .year-card[data-expanded="true"] .year-chevron {
+    transform: rotate(90deg);
+  }
+
+  .season-card[data-expanded="true"] .season-chevron {
+    transform: rotate(90deg);
+  }
+
+  .seasons-container[data-expanded="true"] {
+    max-height: 2000px;
+  }
+
+  .weeks-list[data-expanded="true"] {
+    max-height: 1000px;
+  }
+
+  .year-chevron {
+    transition: transform 0.2s ease-in-out;
+  }
+
+  .season-chevron {
+    transition: transform 0.2s ease-in-out;
+  }
+</style>
+
+<script is:inline>
+document.addEventListener('DOMContentLoaded', () => {
+  // Handle year card expansion
+  document.querySelectorAll('.year-card-header').forEach(header => {
+    header.addEventListener('click', (e) => {
+      e.preventDefault()
+      const yearCard = header.closest('.year-card')
+      if (!yearCard) return
+
+      const seasonsContainer = yearCard.querySelector('.seasons-container')
+      if (!seasonsContainer) return
+
+      const isExpanded = seasonsContainer.dataset.expanded === 'true'
+
+      // Toggle current year
+      const newExpandedState = !isExpanded ? 'true' : 'false'
+      seasonsContainer.dataset.expanded = newExpandedState
+      yearCard.dataset.expanded = newExpandedState
+
+      // Close all other years
+      document.querySelectorAll('.year-card').forEach(otherCard => {
+        if (otherCard !== yearCard) {
+          const otherSeasonsContainer = otherCard.querySelector('.seasons-container')
+          if (otherSeasonsContainer) {
+            otherSeasonsContainer.dataset.expanded = 'false'
+          }
+          otherCard.dataset.expanded = 'false'
+          // Close all seasons in other years
+          otherCard.querySelectorAll('.weeks-list').forEach(weeksList => {
+            weeksList.dataset.expanded = 'false'
+          })
+          otherCard.querySelectorAll('.season-card').forEach(seasonCard => {
+            seasonCard.dataset.expanded = 'false'
+          })
+        }
+      })
+    })
+  })
+
+  // Handle season card expansion
+  document.querySelectorAll('.season-card-header').forEach(header => {
+    header.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+
+      const seasonCard = header.closest('.season-card')
+      if (!seasonCard) return
+
+      const weeksList = seasonCard.querySelector('.weeks-list')
+      if (!weeksList) return
+
+      const isExpanded = weeksList.dataset.expanded === 'true'
+
+      // Toggle current season
+      const newExpandedState = !isExpanded ? 'true' : 'false'
+      weeksList.dataset.expanded = newExpandedState
+      seasonCard.dataset.expanded = newExpandedState
+
+      // Close all other seasons in the same year
+      const parentYearCard = seasonCard.closest('.year-card')
+      if (parentYearCard) {
+        parentYearCard.querySelectorAll('.season-card').forEach(otherSeason => {
+          if (otherSeason !== seasonCard) {
+            const otherWeeksList = otherSeason.querySelector('.weeks-list')
+            if (otherWeeksList) {
+              otherWeeksList.dataset.expanded = 'false'
+            }
+            otherSeason.dataset.expanded = 'false'
+          }
+        })
+      }
+    })
+  })
+})
+</script>

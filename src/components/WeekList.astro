@@ -1,0 +1,88 @@
+---
+import type { CollectionEntry } from 'astro:content'
+import PostDate from '@/components/PostDate.astro'
+import { getWeekPath } from '@/i18n/path'
+
+type Week = CollectionEntry<'weeks'> & {
+  remarkPluginFrontmatter: {
+    minutes: number
+  }
+}
+
+const { weeksByYear } = Astro.props
+
+export interface Props {
+  weeksByYear: Map<number, Week[]>
+}
+---
+
+<!-- Weeks List -->
+<ul>
+  {Array.from(weeksByYear.entries()).map(([year, weeks]) => (
+    <div>
+      {/* Year Header */}
+      <div class="mb-4">
+        <h2 class="text-2xl font-bold text-primary mb-2">
+          {year}
+        </h2>
+      </div>
+
+      {weeks.map((week) => {
+        const slug = week.data.abbrlink || week.id.replace(/^.*\//, '')
+
+        return (
+          <li class="mb-5.5">
+            {/* Week title */}
+            <h3 class="inline transition-colors hover:c-primary">
+              <a
+                class="cjk:tracking-0.02em font-medium text-4"
+                href={getWeekPath(slug)}
+                transition:name={`week-${slug}`}
+                data-disable-theme-transition
+              >
+                {week.data.title}
+              </a>
+              </h3>
+
+            {/* mobile week time */}
+            <div
+              class="py-0.8 text-3.5 font-time lg:hidden"
+              transition:name={`time-${slug}`}
+              data-disable-theme-transition
+            >
+              <PostDate
+                date={week.data.pubDate}
+                minutes={week.remarkPluginFrontmatter.minutes}
+              />
+            </div>
+
+            {/* desktop week time */}
+            <div class="hidden text-3.65 font-time lg:(ml-2.5 inline)">
+              <PostDate
+                date={week.data.pubDate}
+                minutes={week.remarkPluginFrontmatter.minutes}
+              />
+            </div>
+
+            {/* week description */}
+            {week.data.description && (
+              <div class="heti mt-2.25">
+                <p class="text-secondary">{week.data.description}</p>
+              </div>
+            )}
+          </li>
+        )
+      })}
+    </div>
+  ))}
+</ul>
+
+<style>
+  .weeks-container {
+    max-width: 100%;
+  }
+
+  .year-section {
+    scroll-margin-top: 2rem;
+  }
+</style>

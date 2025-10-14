@@ -1,6 +1,5 @@
 ---
 import { themeConfig } from '@/config'
-import { getLangFromPath } from '@/i18n/lang'
 import { getLocalizedPath } from '@/i18n/path'
 
 const { author } = themeConfig.site
@@ -9,18 +8,12 @@ const { links: socialLinks, startYear } = themeConfig.footer
 const currentYear = new Date().getFullYear()
 const year = Number(startYear) === currentYear ? startYear : `${startYear}-${currentYear}`
 
-// i18n RSS Feed Path
-const currentLang = getLangFromPath(Astro.url.pathname)
 const links = socialLinks.map(({ name, url, ...rest }) => {
-  if (name === 'RSS') {
-    return { name, url: getLocalizedPath(url, currentLang), ...rest }
-  }
-
   if (name === 'Email') {
     return { name, url: url.startsWith('mailto:') ? url : `mailto:${url}`, ...rest }
   }
 
-  return { name, url, ...rest }
+  return { name, url: getLocalizedPath(url), ...rest }
 })
 
 const footerLinkClass = 'highlight-hover py-0.8 transition-colors after:bottom-0.35em hover:c-primary'

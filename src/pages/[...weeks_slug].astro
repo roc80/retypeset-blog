@@ -8,30 +8,23 @@ import BackButton from '@/components/Widgets/BackButton.astro'
 import TOC from '@/components/Widgets/TOC.astro'
 import { defaultLocale } from '@/config'
 import Layout from '@/layouts/Layout.astro'
-import { checkPostSlugDuplication } from '@/utils/content'
-import { getPostDescription } from '@/utils/description'
+import { getWeekDescription } from '@/utils/description'
 
 export async function getStaticPaths() {
-  const posts = await getCollection('posts')
+  const weeks = await getCollection('weeks')
 
-  // Check if there are duplicate post slugs
-  const duplicates = await checkPostSlugDuplication(posts)
-  if (duplicates.length > 0) {
-    throw new Error(`Duplicate post slugs:\n${duplicates.join('\n')}`)
-  }
-
-  return posts
-    .filter((post: CollectionEntry<'posts'>) => {
+  return weeks
+    .filter((week: CollectionEntry<'weeks'>) => {
       // Show drafts in dev mode only
-      return (import.meta.env.DEV || !post.data.draft)
-        && (post.data.lang === defaultLocale || post.data.lang === '')
+      return (import.meta.env.DEV || !week.data.draft)
+        && (week.data.lang === defaultLocale || week.data.lang === '')
     })
-    .map((post: CollectionEntry<'posts'>) => {
-      const slug = post.data.abbrlink || post.id
+    .map((week: CollectionEntry<'weeks'>) => {
+      const slug = week.data.abbrlink || week.id
       return {
-        params: { posts_slug: `posts/${slug}/` },
+        params: { weeks_slug: `weeks/${slug}/` },
         props: {
-          post,
+          week,
           lang: defaultLocale,
           supportedLangs: [],
         },
@@ -39,16 +32,16 @@ export async function getStaticPaths() {
     })
 }
 
-const { post } = Astro.props
-const slug = post.data.abbrlink || post.id
-const description = getPostDescription(post, 'meta')
-const { Content, headings, remarkPluginFrontmatter } = await render(post)
+const { week } = Astro.props
+const slug = week.data.abbrlink || week.id
+const description = getWeekDescription(week, 'meta')
+const { Content, headings, remarkPluginFrontmatter } = await render(week)
 ---
 
 <Layout
-  postTitle={post.data.title}
+  postTitle={week.data.title}
   postDescription={description}
-  postSlug={post.id}
+  postSlug={week.id}
   >
   <article class="heti">
     <div class="relative">
@@ -57,10 +50,10 @@ const { Content, headings, remarkPluginFrontmatter } = await render(post)
       <!-- Title -->
       <h1 class="post-title">
         <span
-          transition:name={`post-${slug}`}
+          transition:name={`week-${slug}`}
           data-disable-theme-transition
         >
-          {post.data.title}
+          {week.data.title}
         </span>
       </h1>
     </div>
@@ -73,21 +66,21 @@ const { Content, headings, remarkPluginFrontmatter } = await render(post)
       data-disable-theme-transition
     >
       <PostDate
-        date={post.data.pubDate}
-        updatedDate={post.data.updated}
+        date={week.data.pubDate}
+        updatedDate={week.data.updated}
         minutes={remarkPluginFrontmatter.minutes}
       />
     </div>
     <!-- Tag List -->
-    {post.data.tags?.length > 0 && (
+    {week.data.tags?.length > 0 && (
       <div class="mb-17.2">
         <TagList
-          tags={post.data.tags}
+          tags={week.data.tags}
         />
       </div>
     )}
     <!-- TOC -->
-    {post.data.toc && <TOC headings={headings} />}
+    {week.data.toc && <TOC headings={headings} />}
     <!-- Content -->
     <div id="post-content">
       <Content />

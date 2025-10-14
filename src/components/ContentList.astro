@@ -2,8 +2,8 @@
 import type { CollectionEntry } from 'astro:content'
 import PinIcon from '@/assets/icons/pin-icon.svg'
 import PostDate from '@/components/PostDate.astro'
-import { getPostPath } from '@/i18n/path'
-import { getPostDescription } from '@/utils/description'
+import { getPostPath, getWeekPath } from '@/i18n/path'
+import { getPostDescription, getWeekDescription } from '@/utils/description'
 import { isHomePage } from '@/utils/page'
 
 type Post = CollectionEntry<'posts'> & {
@@ -12,34 +12,60 @@ type Post = CollectionEntry<'posts'> & {
   }
 }
 
-const { posts, pinned = false } = Astro.props
+type Week = CollectionEntry<'weeks'> & {
+  remarkPluginFrontmatter: {
+    minutes: number
+  }
+}
+
+type ContentItem = Post | Week
+
+const { items, pinned = false } = Astro.props
 const isHome = isHomePage(Astro.url.pathname)
 
 export interface Props {
-  posts: Post[]
+  items: ContentItem[]
   pinned?: boolean
+}
+
+function isPost(item: ContentItem): item is Post {
+  return 'collection' in item && item.collection === 'posts'
+}
+
+function isWeek(item: ContentItem): item is Week {
+  return 'collection' in item && item.collection === 'weeks'
 }
 ---
 
 <ul>
-  {posts.map((post) => {
-    const slug = post.data.abbrlink || post.id
+  {items.map((item) => {
+    const isItemPost = isPost(item)
+    const isItemWeek = isWeek(item)
+
+    if (!isItemPost && !isItemWeek) {
+      return null
+    }
+
+    const slug = item.data.abbrlink || item.id
+    const itemPath = isItemPost ? getPostPath(slug) : getWeekPath(slug)
+    const transitionName = isItemPost ? `post-${slug}` : `week-${slug}`
+    const description = isItemPost ? getPostDescription(item, 'list') : getWeekDescription(item, 'list')
 
     return (
       <li
         class="mb-5.5"
         lg={isHome ? 'mb-10' : ''}
       >
-        {/* post title */}
+        {/* content title */}
         <h3 class="inline transition-colors hover:c-primary">
           <a
             class="cjk:tracking-0.02em"
             lg={isHome ? 'font-medium text-4.5' : ''}
-            href={getPostPath(slug)}
-            transition:name={`post-${slug}`}
+            href={itemPath}
+            transition:name={transitionName}
             data-disable-theme-transition
           >
-            {post.data.title}
+            {item.data.title}
           </a>
           {/* pinned icon */}
           {pinned && (
@@ -51,33 +77,33 @@ export interface Props {
           )}
         </h3>
 
-        {/* mobile post time */}
+        {/* mobile content time */}
         <div
           class="py-0.8 text-3.5 font-time lg:hidden"
           transition:name={`time-${slug}`}
           data-disable-theme-transition
         >
           <PostDate
-            date={post.data.pubDate}
-            minutes={post.remarkPluginFrontmatter.minutes}
+            date={item.data.pubDate}
+            minutes={item.remarkPluginFrontmatter.minutes}
           />
         </div>
 
-        {/* desktop post time */}
+        {/* desktop content time */}
         <div class="hidden text-3.65 font-time lg:(ml-2.5 inline)">
           <PostDate
-            date={post.data.pubDate}
-            minutes={post.remarkPluginFrontmatter.minutes}
+            date={item.data.pubDate}
+            minutes={item.remarkPluginFrontmatter.minutes}
           />
         </div>
 
-        {/* desktop post description */}
+        {/* desktop content description */}
         {isHome && (
           <div
             class="heti hidden"
             lg="mt-2.25 block"
           >
-            <p>{getPostDescription(post, 'list')}</p>
+            <p>{description}</p>
           </div>
         )}
       </li>

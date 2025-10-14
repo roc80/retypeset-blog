@@ -63,24 +63,24 @@ function getExcerpt(text: string, lang: string, scene: ExcerptScene): string {
   return excerpt
 }
 
-// Generates post description from existing description or content
-export function getPostDescription(
-  post: CollectionEntry<'posts'>,
+// Generates content description from existing description or content (works with both posts and weeks)
+export function getContentDescription(
+  content: CollectionEntry<'posts'> | CollectionEntry<'weeks'>,
   scene: ExcerptScene,
 ): string {
-  const lang = post.data.lang || defaultLocale
+  const lang = content.data.lang || defaultLocale
 
-  if (post.data.description) {
+  if (content.data.description) {
     // Only truncate for og scene, return full description for other scenes
     return scene === 'og'
-      ? getExcerpt(post.data.description, lang, scene)
-      : post.data.description
+      ? getExcerpt(content.data.description, lang, scene)
+      : content.data.description
   }
 
-  const content = post.body || ''
+  const body = content.body || ''
 
   // Remove HTML comments and Markdown headings
-  const cleanedContent = content
+  const cleanedContent = body
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/^#{1,6}\s+\S.*$/gm, '')
     .replace(/\n{2,}/g, '\n\n')
@@ -88,4 +88,20 @@ export function getPostDescription(
   const htmlContent = markdownParser.render(cleanedContent)
 
   return getExcerpt(htmlContent, lang, scene)
+}
+
+// Generates post description from existing description or content
+export function getPostDescription(
+  post: CollectionEntry<'posts'>,
+  scene: ExcerptScene,
+): string {
+  return getContentDescription(post, scene)
+}
+
+// Generates week description from existing description or content
+export function getWeekDescription(
+  week: CollectionEntry<'weeks'>,
+  scene: ExcerptScene,
+): string {
+  return getContentDescription(week, scene)
 }

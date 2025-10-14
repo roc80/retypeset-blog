@@ -11,9 +11,19 @@ body {
   -webkit-backface-visibility: hidden;
 }
 
-/*全局更换字体*/
+/*全局更换字体 - 优化字体回退策略防止FOUT*/
 * {
-  font-family: 'LXGWWenKai', sans-serif !important;
+  font-family: 'LXGWWenKai', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* 字体加载优化 */
+html {
+  font-display: swap;
+}
+
+/* 防止字体闪烁的优化 */
+body {
+  font-display: swap;
 }
 
 body::selection {
