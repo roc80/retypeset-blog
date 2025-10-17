@@ -29,7 +29,7 @@ mkdirSync(dirname(fullPath), { recursive: true })
 // Prepare file content
 const content = `---
 title: ${baseName}
-pubDate: ${dayjs().format('YYYY-MM-DD HH:mm:ss')};
+pubDate: ${dayjs().format('YYYY-MM-DD HH:mm:ss')}
 description: ''
 updated: ''
 tags:
