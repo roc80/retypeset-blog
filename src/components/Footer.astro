@@ -13,6 +13,10 @@ const links = socialLinks.map(({ name, url, ...rest }) => {
     return { name, url: url.startsWith('mailto:') ? url : `mailto:${url}`, ...rest }
   }
 
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return { name, url, ...rest }
+  }
+
   return { name, url: getLocalizedPath(url), ...rest }
 })
 
