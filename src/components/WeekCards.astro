@@ -258,7 +258,17 @@ function getYearTotalWeeks(seasonMap: Map<Season, Week[]>): number {
 </style>
 
 <script is:inline>
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize event listeners for week cards
+function initializeWeekCards() {
+  // Remove existing event listeners to prevent duplicates
+  document.querySelectorAll('.year-card-header').forEach(header => {
+    header.replaceWith(header.cloneNode(true))
+  })
+
+  document.querySelectorAll('.season-card-header').forEach(header => {
+    header.replaceWith(header.cloneNode(true))
+  })
+
   // Handle year card expansion
   document.querySelectorAll('.year-card-header').forEach(header => {
     header.addEventListener('click', (e) => {
@@ -330,5 +340,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     })
   })
-})
+}
+
+// Initialize on first load
+document.addEventListener('DOMContentLoaded', initializeWeekCards)
+
+// Re-initialize after Astro page transitions
+document.addEventListener('astro:after-swap', initializeWeekCards)
 </script>
