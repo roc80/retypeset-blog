@@ -8,6 +8,7 @@ import GithubCard from '@/components/Widgets/GithubCard.astro'
 import ImageZoom from '@/components/Widgets/ImageZoom.astro'
 import MediaEmbed from '@/components/Widgets/MediaEmbed.astro'
 import SoundEffect from '@/components/Widgets/SoundEffect.astro'
+// import PageTransitions from '@/components/PageTransitions.astro'
 import themeConfig from '@/config'
 import Head from '@/layouts/Head.astro'
 import { getPageInfo } from '@/utils/page'
@@ -18,6 +19,7 @@ import '@/styles/global.css'
 import '@/styles/lqip.css'
 import '@/styles/markdown.css'
 import '@/styles/transition.css'
+import { ViewTransitions } from 'astro:transitions'
 
 interface Props {
   postTitle?: string
@@ -42,6 +44,14 @@ const MarginBottom = isPost && themeConfig.comment?.enabled
   ]}
 >
   <Head {postTitle} {postDescription} {postSlug} />
+  <ViewTransitions fallback="swap" />
+  <div class="page-loading-overlay">
+    <div>
+      <div class="page-loading-spinner"></div>
+      <div class="page-loading-text">页面加载中...</div>
+    </div>
+  </div>
+  <div class="page-progress" />
   <body>
     <div
       class="mx-auto max-w-205.848 min-h-vh w-full min-h-dvh"
@@ -61,5 +71,6 @@ const MarginBottom = isPost && themeConfig.comment?.enabled
     <GithubCard />
     <MediaEmbed />
     <ImageZoom />
+    {/* <PageTransitions /> */}
   </body>
 </html>

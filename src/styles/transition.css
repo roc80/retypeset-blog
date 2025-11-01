@@ -151,6 +151,455 @@ html[data-theme-changing] [data-disable-theme-transition] {
   }
 }
 
+/* Page Transition Animations >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+
+/* Full page transition container */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+/* Full page fade transition */
+::view-transition-old(root:only-child) {
+  opacity: 1;
+  animation: pageFadeOut 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+::view-transition-new(root:only-child) {
+  opacity: 0;
+  animation: pageFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Root container for page transitions */
+main {
+  view-transition-name: none;
+}
+
+/* Navigation and header transitions */
+header {
+  view-transition-name: none;
+}
+
+/* Footer transitions */
+footer {
+  view-transition-name: none;
+}
+
+/* Sidebar transitions */
+aside {
+  view-transition-name: none;
+}
+
+/* Page navigation transitions */
+nav {
+  view-transition-name: none;
+}
+
+/* Page fade animations */
+@keyframes pageFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(1rem) scale(0.98);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+}
+
+@keyframes pageFadeOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-1rem) scale(1.02);
+    filter: blur(2px);
+  }
+}
+
+/* View Transitions for smooth page changes */
+::view-transition-old(root) {
+  animation: pageFadeOut 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+::view-transition-new(root) {
+  animation: pageFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Ensure overlay is always on top during transitions */
+.page-loading-overlay {
+  position: fixed !important;
+  z-index: 9999 !important;
+}
+
+/* Prevent content from disappearing during transitions */
+html[data-navigation-loading] {
+  /* Keep the previous page content visible */
+}
+
+html[data-navigation-loading] body {
+  /* Ensure body doesn't disappear */
+  opacity: 1 !important;
+}
+
+/* Keep main content visible with transition effects */
+html[data-navigation-loading] main {
+  opacity: 0.8 !important;
+  filter: blur(2px) brightness(0.8) !important;
+  transform: scale(0.98) !important;
+  transition: all 0.3s ease !important;
+}
+
+/* Enhanced loading overlay */
+.page-loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, backdrop-filter 0.3s ease;
+  will-change: opacity, backdrop-filter;
+}
+
+html.dark .page-loading-overlay {
+  background: rgba(0, 0, 0, 0.95);
+}
+
+/* Loading spinner */
+.page-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(59, 130, 246, 0.2);
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Loading text */
+.page-loading-text {
+  margin-top: 1rem;
+  color: #6b7280;
+  font-size: 0.9rem;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease 0.1s, transform 0.3s ease 0.1s;
+}
+
+html.dark .page-loading-text {
+  color: #9ca3af;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Show loading overlay immediately */
+html[data-navigation-loading] .page-loading-overlay {
+  opacity: 1;
+  pointer-events: all;
+  backdrop-filter: blur(12px);
+}
+
+html[data-navigation-loading] .page-loading-spinner {
+  opacity: 1;
+  transform: scale(1);
+}
+
+html[data-navigation-loading] .page-loading-text {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Ensure overlay is visible during entire transition */
+html[data-navigation-loading] {
+  /* Prevent content from being hidden during transition */
+  overflow: hidden;
+}
+
+/* Keep content visible but dimmed during navigation */
+html[data-navigation-loading] body > *:not(.page-loading-overlay) {
+  filter: blur(1px) brightness(0.9);
+  transition: filter 0.3s ease;
+}
+
+/* Main content transitions during navigation */
+html[data-navigation-loading] main {
+  filter: blur(2px) brightness(0.8);
+  transform: scale(0.98);
+  transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+/* Prevent page flashing during transitions */
+html[data-navigation-loading] body > * {
+  transition: opacity 0.2s ease;
+}
+
+/* Smooth transition for main content */
+main {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+html[data-navigation-loading] main {
+  opacity: 0.8;
+  transform: scale(0.99);
+}
+
+/* Prevent FOUC (Flash of Unstyled Content) - DISABLED */
+/* html:not([data-transition-ready]) {
+  visibility: hidden;
+}
+
+html[data-transition-ready] {
+  visibility: visible;
+} */
+
+/* Loading states for better UX */
+html[data-navigation-loading] a {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Disable hover effects during navigation */
+html[data-navigation-loading] *:hover {
+  cursor: wait !important;
+}
+
+/* Header and footer transitions */
+::view-transition-old(page-header),
+::view-transition-new(page-header),
+::view-transition-old(page-footer),
+::view-transition-new(page-footer) {
+  animation: none;
+}
+
+::view-transition-new(page-header),
+::view-transition-new(page-footer) {
+  opacity: 0;
+  animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+::view-transition-old(page-header),
+::view-transition-old(page-footer) {
+  opacity: 1;
+}
+
+/* Navigation transitions */
+::view-transition-old(page-nav),
+::view-transition-new(page-nav) {
+  animation: none;
+}
+
+::view-transition-new(page-nav) {
+  opacity: 0;
+  animation: fadeInUp 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+::view-transition-old(page-nav) {
+  opacity: 1;
+}
+
+/* Sidebar transitions */
+::view-transition-old(page-sidebar),
+::view-transition-new(page-sidebar) {
+  animation: none;
+}
+
+::view-transition-new(page-sidebar) {
+  opacity: 0;
+  animation: fadeInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+::view-transition-old(page-sidebar) {
+  opacity: 1;
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Loading state for navigation */
+html[data-navigation-loading] {
+  cursor: wait;
+}
+
+html[data-navigation-loading] a {
+  pointer-events: none;
+}
+
+/* Navigation direction detection for better animations */
+html[data-navigation-direction="forward"] {
+  --page-transition-direction: 1;
+}
+
+html[data-navigation-direction="back"] {
+  --page-transition-direction: -1;
+}
+
+/* Week Cards specific transitions */
+.week-item {
+  view-transition-name: none;
+}
+
+.year-card {
+  view-transition-name: year-card-container;
+}
+
+.season-card {
+  view-transition-name: none;
+}
+
+/* Enhanced week card animations */
+.week-item a {
+  position: relative;
+  overflow: hidden;
+}
+
+.week-item a::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transition: left 0.5s ease;
+  z-index: 1;
+}
+
+.week-item a:hover::before {
+  left: 100%;
+}
+
+/* Smooth scroll behavior for week cards */
+.seasons-container,
+.weeks-list {
+  scroll-behavior: smooth;
+}
+
+/* Micro-interactions for navigation */
+.week-item a {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.week-item a:active {
+  transform: scale(0.98);
+}
+
+/* Loading animation for navigation clicks */
+@keyframes navigationPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.week-item a[data-navigating] {
+  animation: navigationPulse 0.6s ease-in-out;
+  pointer-events: none;
+}
+
+/* Progress indicator for page loading */
+.page-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  z-index: 9999;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+html[data-navigation-loading] .page-progress {
+  transform: scaleX(1);
+  transition: transform 0.3s ease, transform 0.2s ease 0.3s;
+}
+
+/* Enhanced loading cursor */
+html[data-navigation-loading] * {
+  cursor: wait !important;
+}
+
+/* Optimized animations for performance */
+@media (prefers-reduced-motion: reduce) {
+  .week-item a::before {
+    display: none;
+  }
+
+  .week-item a {
+    transition: none;
+  }
+
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* Dark mode optimized transitions */
+html.dark .week-item a::before {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+}
+
+/* Page transition enhancements */
+@keyframes pageTransitionBlur {
+  0% {
+    filter: blur(0px);
+    opacity: 1;
+  }
+  50% {
+    filter: blur(1px);
+    opacity: 0.8;
+  }
+  100% {
+    filter: blur(0px);
+    opacity: 1;
+  }
+}
+
+/* Subtle blur effect during transitions */
+html[data-navigation-loading] main {
+  filter: blur(0.5px);
+  transition: filter 0.3s ease;
+}
+
 /* Fallback Transition >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
 html.reduce-motion {
   --at-apply: 'transition-colors duration-300 ease-out';
@@ -169,5 +618,11 @@ html.reduce-motion {
     opacity: 1;
     transform: translate(0);
     animation: none;
+  }
+
+  /* Disable view transitions for reduced motion */
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }

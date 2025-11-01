@@ -1,0 +1,131 @@
+---
+interface Props {
+  enabled?: boolean
+}
+
+const { enabled = true } = Astro.props
+
+if (!enabled) {
+  return null
+}
+---
+
+<script is:inline>
+// 最简化的页面过渡系统
+(function() {
+  let isLoading = false;
+
+  function showLoading() {
+    if (isLoading) return;
+    isLoading = true;
+
+    // 设置加载状态
+    document.documentElement.setAttribute('data-navigation-loading', 'true');
+    document.body.style.cursor = 'wait';
+
+    // 显示加载覆盖层
+    const overlay = document.querySelector('.page-loading-overlay');
+    if (overlay) {
+      overlay.style.opacity = '1';
+      overlay.style.pointerEvents = 'all';
+    }
+
+    // 显示进度条
+    const progressBar = document.querySelector('.page-progress');
+    if (progressBar) {
+      progressBar.style.transform = 'scaleX(1)';
+    }
+  }
+
+  function hideLoading() {
+    if (!isLoading) return;
+    isLoading = false;
+
+    // 隐藏加载覆盖层
+    const overlay = document.querySelector('.page-loading-overlay');
+    if (overlay) {
+      overlay.style.opacity = '0';
+      overlay.style.pointerEvents = 'none';
+    }
+
+    // 隐藏进度条
+    const progressBar = document.querySelector('.page-progress');
+    if (progressBar) {
+      progressBar.style.transform = 'scaleX(0)';
+    }
+
+    // 恢复body状态
+    document.documentElement.removeAttribute('data-navigation-loading');
+    document.body.style.cursor = '';
+  }
+
+  // 设置链接点击监听
+  function setupLinkListeners() {
+    document.addEventListener('click', function(e) {
+      const link = e.target.closest('a[href]');
+      if (!link) return;
+
+      const href = link.getAttribute('href');
+      if (!href) return;
+
+      // 跳过外部链接和特殊链接
+      if (href.startsWith('http') ||
+          href.startsWith('mailto:') ||
+          href.startsWith('tel:') ||
+          href.startsWith('#') ||
+          link.download ||
+          link.target === '_blank') {
+        return;
+      }
+
+      // 检查是否为内部链接
+      if (href.startsWith('/') || href.includes(window.location.hostname)) {
+        e.preventDefault();
+        showLoading();
+        setTimeout(() => {
+          window.location.href = href;
+        }, 200);
+      }
+    });
+  }
+
+  // 设置Astro事件监听
+  function setupAstroListeners() {
+    // 页面开始导航时显示加载动画
+    document.addEventListener('astro:after-preparation', showLoading);
+
+    // 页面加载完成后隐藏加载动画
+    document.addEventListener('astro:page-load', function() {
+      setTimeout(hideLoading, 300);
+    });
+
+    // 导航失败时隐藏加载动画
+    document.addEventListener('astro:load-error', hideLoading);
+
+    // 浏览器后退/前进时显示加载动画
+    window.addEventListener('popstate', function() {
+      showLoading();
+      setTimeout(hideLoading, 1000);
+    });
+  }
+
+  // 初始化
+  function init() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        setupLinkListeners();
+        setupAstroListeners();
+      });
+    } else {
+      setupLinkListeners();
+      setupAstroListeners();
+    }
+  }
+
+  // 启动
+  init();
+
+  // Astro页面切换后重新初始化
+  document.addEventListener('astro:after-swap', init);
+})();
+</script>
