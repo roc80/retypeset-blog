@@ -15,14 +15,14 @@ Welcome to my personal website, which records my learning, development and life 
 ### 📂 My Content
 
 - 🪐 [Blog](/)
-- 🎯 [Projects](https://github.com/roc80)
+- 🎯 [Projects](https://github.com/roc80/)
 - 📡 [Contacts me](mailto:lipeng_8080@163.com)
 
 ### 🚀 Activity
 
 - 🌐 2025.06.10 | Build My Blog Based on Astro
-- 🎯 2025.06.30 | [user center](https://user.rocli.cn)
-- 🎯 2025.06.30 | [find friends](https://find-friends.rocli.cn)
+- 🎯 2025.06.30 | [user center](https://user.rocli.cn/)
+- 🎯 2025.06.30 | [find friends](https://find-friends.rocli.cn/)
 - 💼 2025.07.21 | Get My First Backend Development Work
 
 ---

@@ -99,7 +99,8 @@ public class RepeatableRequestWrapper extends HttpServletRequestWrapper {
 
 5. ![alt text](https://raw.githubusercontent.com/roc80/DrawingBoard/main/image/image-1.png) 到这里的时候，parts里面已经有数据了。parts中的数据什么时候set进来的？
 
-6. `getParameter()`解析Request参数的时候，就解析了parts![alt text](https://raw.githubusercontent.com/roc80/DrawingBoard/main/image/image-2.png)
+6. `getParameter()`解析Request参数的时候，就解析了parts
+![alt text](https://raw.githubusercontent.com/roc80/DrawingBoard/main/image/image-2.png)
 
 7. 到这里先偷懒，放弃继续挖下去。
 

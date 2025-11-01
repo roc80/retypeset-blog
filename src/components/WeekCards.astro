@@ -183,17 +183,15 @@ function getYearTotalWeeks(seasonMap: Map<Season, Week[]>): number {
                       const slug = week.data.abbrlink || week.id.replace(/^.*\//, '')
 
                       return (
-                        <div class="week-item p-3 bg-secondary/5 rounded-lg hover:bg-secondary/10 transition-colors">
+                        <a
+                          href={getWeekPath(slug)}
+                          transition:name={`week-${slug}`}
+                          data-disable-theme-transition
+                          class="week-item block p-3 bg-secondary/5 rounded-lg hover:bg-secondary/10 transition-all duration-200 hover:shadow-sm hover:scale-[1.02] transform group"
+                        >
                           {/* Week title */}
-                          <h4 class="inline transition-colors hover:c-primary">
-                            <a
-                              class="cjk:tracking-0.02em font-medium text-3.5"
-                              href={getWeekPath(slug)}
-                              transition:name={`week-${slug}`}
-                              data-disable-theme-transition
-                            >
-                              {week.data.title}
-                            </a>
+                          <h4 class="cjk:tracking-0.02em font-medium text-3.5 transition-colors group-hover:c-primary">
+                            {week.data.title}
                           </h4>
 
                           {/* week time */}
@@ -210,7 +208,7 @@ function getYearTotalWeeks(seasonMap: Map<Season, Week[]>): number {
                               <p class="text-secondary text-sm line-clamp-2">{getWeekDescription(week, 'list')}</p>
                             </div>
                           )}
-                        </div>
+                        </a>
                       )
                     })}
                   </div>
@@ -258,19 +256,105 @@ function getYearTotalWeeks(seasonMap: Map<Season, Week[]>): number {
 </style>
 
 <script is:inline>
+// Global flag to track if event listeners are already bound
+let weekCardsInitialized = false
+
+// State management for expanded cards
+const STORAGE_KEY = 'week-cards-expanded-state'
+
+// Save expanded state to localStorage
+function saveExpandedState(expandedYear, expandedSeasons = []) {
+  const state = {
+    expandedYear: expandedYear,
+    expandedSeasons: expandedSeasons,
+    timestamp: Date.now()
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+}
+
+// Load expanded state from localStorage
+function loadExpandedState() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (!saved) return null
+
+    const state = JSON.parse(saved)
+    // Only restore state if it's less than 24 hours old
+    const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000)
+    if (state.timestamp > oneDayAgo) {
+      return state
+    }
+  } catch (error) {
+    console.warn('Failed to load week cards expanded state:', error)
+  }
+  return null
+}
+
+// Apply expanded state to DOM
+function applyExpandedState(state) {
+  if (!state) return
+
+  // Apply expanded year
+  if (state.expandedYear) {
+    const yearCard = document.querySelector(`.year-card[data-year="${state.expandedYear}"]`)
+    if (yearCard) {
+      const seasonsContainer = yearCard.querySelector('.seasons-container')
+      if (seasonsContainer) {
+        seasonsContainer.dataset.expanded = 'true'
+        yearCard.dataset.expanded = 'true'
+      }
+    }
+  }
+
+  // Apply expanded seasons
+  if (state.expandedSeasons && Array.isArray(state.expandedSeasons)) {
+    state.expandedSeasons.forEach(seasonKey => {
+      const [year, season] = seasonKey.split('-')
+      const seasonCard = document.querySelector(`.year-card[data-year="${year}"] .season-card[data-season="${season}"]`)
+      if (seasonCard) {
+        const weeksList = seasonCard.querySelector('.weeks-list')
+        if (weeksList) {
+          weeksList.dataset.expanded = 'true'
+          seasonCard.dataset.expanded = 'true'
+        }
+      }
+    })
+  }
+}
+
 // Initialize event listeners for week cards
 function initializeWeekCards() {
-  // Remove existing event listeners to prevent duplicates
-  document.querySelectorAll('.year-card-header').forEach(header => {
-    header.replaceWith(header.cloneNode(true))
-  })
+  // Check if elements exist before trying to bind events
+  const yearHeaders = document.querySelectorAll('.year-card-header')
+  const seasonHeaders = document.querySelectorAll('.season-card-header')
 
-  document.querySelectorAll('.season-card-header').forEach(header => {
-    header.replaceWith(header.cloneNode(true))
-  })
+  if (yearHeaders.length === 0 && seasonHeaders.length === 0) {
+    // Elements don't exist yet, retry after a short delay
+    setTimeout(initializeWeekCards, 100)
+    return
+  }
+
+  // Prevent duplicate initialization
+  if (weekCardsInitialized) {
+    // Remove existing event listeners safely
+    const cleanHeaders = (headers) => {
+      headers.forEach(header => {
+        // Remove event listeners by cloning the node
+        const newHeader = header.cloneNode(true)
+        header.parentNode?.replaceChild(newHeader, header)
+      })
+    }
+
+    cleanHeaders(yearHeaders)
+    cleanHeaders(seasonHeaders)
+  }
+
+  // Get fresh references after potential cloning
+  const freshYearHeaders = document.querySelectorAll('.year-card-header')
+  const freshSeasonHeaders = document.querySelectorAll('.season-card-header')
 
   // Handle year card expansion
-  document.querySelectorAll('.year-card-header').forEach(header => {
+  freshYearHeaders.forEach(header => {
     header.addEventListener('click', (e) => {
       e.preventDefault()
       const yearCard = header.closest('.year-card')
@@ -303,11 +387,21 @@ function initializeWeekCards() {
           })
         }
       })
+
+      // Save state to localStorage
+      const year = yearCard.dataset.year
+      if (newExpandedState === 'true') {
+        // Save expanded year
+        saveExpandedState(year)
+      } else {
+        // Clear saved state when collapsing
+        saveExpandedState(null)
+      }
     })
   })
 
   // Handle season card expansion
-  document.querySelectorAll('.season-card-header').forEach(header => {
+  freshSeasonHeaders.forEach(header => {
     header.addEventListener('click', (e) => {
       e.preventDefault()
       e.stopPropagation()
@@ -338,13 +432,65 @@ function initializeWeekCards() {
           }
         })
       }
+
+      // Save state to localStorage
+      const year = parentYearCard?.dataset.year
+      const season = seasonCard.dataset.season
+      if (newExpandedState === 'true' && year && season) {
+        // Get current expanded seasons
+        const currentExpandedSeasons = []
+        document.querySelectorAll('.season-card[data-expanded="true"]').forEach(card => {
+          const cardYear = card.closest('.year-card')?.dataset.year
+          const cardSeason = card.dataset.season
+          if (cardYear && cardSeason) {
+            currentExpandedSeasons.push(`${cardYear}-${cardSeason}`)
+          }
+        })
+
+        // Save state with expanded year and seasons
+        saveExpandedState(year, currentExpandedSeasons)
+      }
     })
   })
+
+  // Restore saved state
+  const savedState = loadExpandedState()
+  if (savedState) {
+    // Apply saved state after a brief delay to ensure elements are ready
+    setTimeout(() => {
+      applyExpandedState(savedState)
+    }, 10)
+  }
+
+  // Mark as initialized
+  weekCardsInitialized = true
+}
+
+// Enhanced initialization with better timing
+function safeInitializeWeekCards() {
+  // Ensure DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', safeInitializeWeekCards)
+    return
+  }
+
+  // Add a small delay to ensure all elements are rendered
+  setTimeout(initializeWeekCards, 50)
 }
 
 // Initialize on first load
-document.addEventListener('DOMContentLoaded', initializeWeekCards)
+safeInitializeWeekCards()
 
-// Re-initialize after Astro page transitions
-document.addEventListener('astro:after-swap', initializeWeekCards)
+// Re-initialize after Astro page transitions with a small delay to ensure DOM is ready
+document.addEventListener('astro:after-swap', () => {
+  weekCardsInitialized = false // Reset flag for new page
+  setTimeout(safeInitializeWeekCards, 50)
+})
+
+// Also initialize when the page becomes visible (handles browser tab switching)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && !weekCardsInitialized) {
+    setTimeout(safeInitializeWeekCards, 100)
+  }
+})
 </script>
