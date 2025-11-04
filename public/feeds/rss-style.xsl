@@ -9,6 +9,7 @@
         <title><xsl:value-of select="/rss/channel/title"/> Web Feed</title>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+        <link rel="icon" type="image/x-icon" href="../icons/favicon.ico"/>
         <style type="text/css">
         /* Basic styles */
         html{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
