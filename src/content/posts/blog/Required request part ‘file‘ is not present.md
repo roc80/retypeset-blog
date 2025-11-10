@@ -1,7 +1,8 @@
 ---
 title: Required request part ‘file‘ is not present
 pubDate: 2025-09-07 16:36:42
-tags: [Debug]
+tags:
+  - Debug
 ---
 
 ### 问题

@@ -1,7 +1,8 @@
 ---
 title: CrashCourseofCS
 pubDate: 2024-05-30 21:37:09
-tags: [CS]
+tags:
+  - CS
 ---
 
 > bump up a new level of abstraction

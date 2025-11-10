@@ -1,7 +1,8 @@
 ---
 title: mybatis Cannot determine value type from string ‘xxx‘
 pubDate: 2025-07-02 18:17:02
-tags: [Debug]
+tags:
+  - Debug
 ---
 
 #### 问题

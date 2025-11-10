@@ -1,7 +1,8 @@
 ---
 title: Kotlin语法
 pubDate: 2024-04-18 23:52:15
-tags: [Kotlin]
+tags:
+  - Kotlin
 
 ---
 

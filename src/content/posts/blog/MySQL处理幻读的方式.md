@@ -1,7 +1,8 @@
 ---
 title: MySQL处理幻读的方式
 pubDate: 2025-05-27 10:14:18
-tags: [SQL]
+tags:
+  - SQL
 ---
 
 ## REPEATABLE隔离级别
