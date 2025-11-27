@@ -9,7 +9,7 @@ import sanitizeHtml from 'sanitize-html'
 import { base, defaultLocale, themeConfig } from '@/config'
 import { ui } from '@/i18n/ui'
 import { memoize } from '@/utils/cache'
-import { getPostDescription } from '@/utils/description'
+import { getPostDescription, getWeekDescription } from '@/utils/description'
 
 const markdownParser = new MarkdownIt()
 const { title, description, i18nTitle, url, author } = themeConfig.site
@@ -147,7 +147,7 @@ export async function generateFeed({ lang }: { lang?: string } = {}) {
     },
   )
 
-  // Also get weeks collection
+  // Filter weeks by language and exclude drafts
   const weeks = await getCollection(
     'weeks',
     ({ data }: { data: CollectionEntry<'weeks'>['data'] }) => {
@@ -160,19 +160,19 @@ export async function generateFeed({ lang }: { lang?: string } = {}) {
     },
   )
 
-  // Combine posts and weeks collections with proper typing
-  const allPosts = [...posts, ...weeks] as Array<CollectionEntry<'posts'>>
-
-  // Sort posts by published date in descending order and limit to the latest 25
+  // Combine posts and weeks, then sort by published date in descending order
+  const allPosts = [...posts, ...weeks]
   const recentPosts = allPosts
     .sort((a, b) => new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime())
 
-  // Add posts to feed
+  // Add posts and weeks to feed
   for (const post of recentPosts) {
     const slug = post.data.abbrlink || post.id
-    // Determine if this is a weeks post or regular post
-    const isWeeksPost = post.id.startsWith('src/content/posts/weeks/') || post.collection === 'weeks'
-    const link = new URL(`${isWeeksPost ? 'weeks' : 'posts'}/${slug}/`, siteURL).toString()
+
+    // Determine the correct path based on collection type
+    const collection = post.collection
+    const pathPrefix = collection === 'weeks' ? 'weeks' : 'posts'
+    const link = new URL(`${pathPrefix}/${slug}/`, siteURL).toString()
 
     // Optimize content processing
     const postContent = post.body
@@ -194,11 +194,16 @@ export async function generateFeed({ lang }: { lang?: string } = {}) {
     // updateDate -> Atom:<updated>, RSS has no update tag
     // const updateDate = post.data.updated ? new Date(post.data.updated) : publishDate
 
+    // Generate appropriate description based on collection type
+    const description = post.collection === 'weeks'
+      ? getWeekDescription(post, 'feed')
+      : getPostDescription(post, 'feed')
+
     feed.addItem({
       title: post.data.title,
       id: link,
       link,
-      description: getPostDescription(post, 'feed'),
+      description,
       content: postContent,
       author: [{
         name: author,
