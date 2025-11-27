@@ -170,7 +170,9 @@ export async function generateFeed({ lang }: { lang?: string } = {}) {
   // Add posts to feed
   for (const post of recentPosts) {
     const slug = post.data.abbrlink || post.id
-    const link = new URL(`posts/${slug}/`, siteURL).toString()
+    // Determine if this is a weeks post or regular post
+    const isWeeksPost = post.id.startsWith('src/content/posts/weeks/') || post.collection === 'weeks'
+    const link = new URL(`${isWeeksPost ? 'weeks' : 'posts'}/${slug}/`, siteURL).toString()
 
     // Optimize content processing
     const postContent = post.body
