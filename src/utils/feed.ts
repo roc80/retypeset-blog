@@ -147,8 +147,24 @@ export async function generateFeed({ lang }: { lang?: string } = {}) {
     },
   )
 
+  // Also get weeks collection
+  const weeks = await getCollection(
+    'weeks',
+    ({ data }: { data: CollectionEntry<'weeks'>['data'] }) => {
+      const isNotDraft = !data.draft
+      const isCorrectLang = data.lang === lang
+        || data.lang === ''
+        || (lang === undefined && data.lang === defaultLocale)
+
+      return isNotDraft && isCorrectLang
+    },
+  )
+
+  // Combine posts and weeks collections with proper typing
+  const allPosts = [...posts, ...weeks] as Array<CollectionEntry<'posts'>>
+
   // Sort posts by published date in descending order and limit to the latest 25
-  const recentPosts = [...posts]
+  const recentPosts = allPosts
     .sort((a, b) => new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime())
 
   // Add posts to feed
