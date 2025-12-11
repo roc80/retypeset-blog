@@ -3,6 +3,7 @@ title: 为什么重写equals()时需要重写hashCode()?
 pubDate: 2024-04-18 23:50:18
 tags:
   - Java
+abbrlink: learning-java-equals-and-hashcode
 ---
 
 equals()的API Note写道：

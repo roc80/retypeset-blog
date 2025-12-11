@@ -9,7 +9,7 @@ draft: true
 pin: 0
 toc: true
 lang: ''
-abbrlink: ''
+abbrlink: transfer-about-nocobase
 ---
 
 > 原文链接：

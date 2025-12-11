@@ -9,7 +9,7 @@ draft: true
 pin: 0
 toc: true
 lang: ''
-abbrlink: ''
+abbrlink: spring-boot-circle-dependency
 ---
 
 现有的项目，使用@Autowired注入依赖，可以避免循环依赖问题。

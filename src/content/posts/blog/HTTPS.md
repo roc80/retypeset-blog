@@ -3,6 +3,7 @@ title: HTTPS
 pubDate: 2024-11-30 21:08:50
 tags:
   - Web
+abbrlink: learning-https 
 ---
 
 ## HTTP

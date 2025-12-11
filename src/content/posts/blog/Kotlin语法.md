@@ -3,7 +3,7 @@ title: Kotlin语法
 pubDate: 2024-04-18 23:52:15
 tags:
   - Kotlin
-
+abbrlink: learning-kotlin-grammar
 ---
 
 # Kotlin实用扩展函数

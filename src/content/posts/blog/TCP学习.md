@@ -9,7 +9,7 @@ draft: true
 pin: 0
 toc: true
 lang: ''
-abbrlink: ''
+abbrlink: learning-tcp
 ---
 ##### ACK的累计确认机制
 [参考文章](https://cefboud.com/posts/tcp-deep-dive-internals/)

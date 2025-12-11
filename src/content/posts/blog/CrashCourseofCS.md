@@ -3,6 +3,7 @@ title: CrashCourseofCS
 pubDate: 2024-05-30 21:37:09
 tags:
   - CS
+abbrlink: crash-course-of-cs
 ---
 
 > bump up a new level of abstraction

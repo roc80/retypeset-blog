@@ -9,7 +9,7 @@ draft: false
 pin: 0
 toc: true
 lang: ''
-abbrlink: ''
+abbrlink: transfer-rtfc
 ---
 
 > 原文链接：[Read That F*cking Code! ](https://etsd.tech/posts/rtfc)
