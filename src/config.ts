@@ -82,10 +82,10 @@ export const themeConfig: ThemeConfig = {
     // giscus
     // https://giscus.app/
     giscus: {
-      repo: 'roc80/roc80.github.io',
+      repo: 'roc80/retypeset-blog',
       repoId: 'R_kgDOPwMq4g',
-      category: 'Announcements',
-      categoryId: 'DIC_kwDOPwMq4s4CveNQ',
+      category: 'General',
+      categoryId: 'DIC_kwDOPwMq4s4CveNR',
       mapping: 'pathname',
       strict: '0',
       reactionsEnabled: '1',

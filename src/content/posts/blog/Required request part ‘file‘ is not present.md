@@ -122,30 +122,5 @@ RepeatableRequestWrapper内，对于mutipart类型的请求，不要去读Stream
 
 --- 完 ---
 
-
-
 ### 参考文章
 [refer1] https://segmentfault.com/a/1190000022635405
-
-
-
-
-
-<script src="https://giscus.app/client.js"
-
-        data-repo="roc80/Blog"
-        data-repo-id="R_kgDOO4NnfQ"
-        data-category="Announcements"
-        data-category-id="DIC_kwDOO4Nnfc4Ctshe"
-        data-mapping="pathname"
-        data-strict="1"
-        data-reactions-enabled="1"
-        data-emit-metadata="0"
-        data-input-position="top"
-        data-theme="preferred_color_scheme"
-        data-lang="zh-CN"
-        data-loading="lazy"
-        crossorigin="anonymous"
-        async>
-
-</script>
