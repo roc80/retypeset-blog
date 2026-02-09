@@ -1,12 +1,11 @@
 ---
-title: 终端操作快捷键
+title: CLI快捷键
 pubDate: 2025-12-25 16:35:41
 description: ''
 updated: ''
 tags:
-  - Vim
   - CLI
-draft: true
+draft: false
 pin: 0
 toc: true
 lang: ''
