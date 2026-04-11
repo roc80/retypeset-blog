@@ -77,8 +77,8 @@ export const themeConfig: ThemeConfig = {
 
   // COMMENT SETTINGS >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> START
   comment: {
-    // enable comment system
-    enabled: true, // true, false
+    // giscus请求一直报错，也影响加载速度，所以禁用。todo@lp 新的评论系统
+    enabled: false, // true, false
     // giscus
     // https://giscus.app/
     giscus: {
