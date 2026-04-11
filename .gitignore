@@ -3,6 +3,9 @@ dist/
 .output/
 .astro/
 
+# LQIP cache (构建产物)
+src/assets/lqip-map.json
+
 # dependencies
 node_modules/
 

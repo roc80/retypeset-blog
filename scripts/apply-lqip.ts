@@ -270,14 +270,15 @@ async function loadExistingLqipMap(): Promise<LqipMap> {
 async function scanAndAnalyzeImages(): Promise<{ fileMappings: FileMapping[], imageStats: ImageStats, existingMap: LqipMap }> {
   await fs.mkdir(assetsDir, { recursive: true })
 
-  const webpFiles = await glob('_astro/**/*.webp', {
+  // 搜索 images 目录下的所有图片
+  const imageFiles = await glob('images/**/*.{png,jpg,jpeg,webp,gif}', {
     cwd: distDir,
     absolute: true,
   })
 
   const existingMap = await loadExistingLqipMap()
 
-  const fileMappings = webpFiles.map(filePath => ({
+  const fileMappings = imageFiles.map(filePath => ({
     filePath,
     webUrl: `/${path.relative(distDir, filePath).replace(/\\/g, '/')}`,
   }))
