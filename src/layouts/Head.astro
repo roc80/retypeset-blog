@@ -54,10 +54,8 @@ const pageImage = postSlug
 <!-- Preload -->
 {katexEnabled && <link rel="stylesheet" href={katexCSS} media="print" onload={`this.media='all'`} />}
 
-<!-- Font Preload - Prevent FOUT -->
-<link rel="preload" href="/fonts/LXGWWenKai-Regular.ttf" as="font" type="font/ttf" crossorigin="anonymous" />
-<link rel="preload" href="/fonts/LXGWWenKai-Light.ttf" as="font" type="font/ttf" crossorigin="anonymous" />
-<link rel="preload" href="/fonts/LXGWWenKai-Medium.ttf" as="font" type="font/ttf" crossorigin="anonymous" />
+<!-- Font Preload - 子集化 WOFF2 字体 (579KB, 原 23.6MB) -->
+<link rel="preload" href="/fonts/LXGWWenKai-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
 
 <!-- Site Links -->
 <link rel="canonical" href={Astro.url} />
@@ -82,42 +80,6 @@ const pageImage = postSlug
 
 <!-- Global View Transition -->
 <ClientRouter fallback="none" />
-
-<!-- Font Loading Optimization -->
-<script
-  is:inline
->
-// Optimize font loading to prevent FOUT
-(function() {
-  // Create a style element to hide text while fonts are loading
-  const style = document.createElement('style')
-  style.innerHTML = `
-    * {
-      font-display: swap;
-    }
-    body {
-      opacity: 0;
-      transition: opacity 0.1s ease-in;
-    }
-    body.fonts-loaded {
-      opacity: 1;
-    }
-  `
-  document.head.appendChild(style)
-
-  // Wait for fonts to load
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(function() {
-      document.body.classList.add('fonts-loaded')
-    })
-  } else {
-    // Fallback for older browsers
-    setTimeout(function() {
-      document.body.classList.add('fonts-loaded')
-    }, 100)
-  }
-})()
-</script>
 
 <!-- Theme Toggle -->
 <script

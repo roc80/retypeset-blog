@@ -1,22 +1,11 @@
-/* LXGWWenKai - Optimized font loading to prevent FOUT (Flash of Unstyled Text) */
+/* LXGWWenKai - 子集化 WOFF2 字体 (1.1MB, 含 5237 字符) */
 @font-face {
   font-family: 'LXGWWenKai';
-  src: url('/fonts/LXGWWenKai-Light.ttf') format('truetype');
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'LXGWWenKai';
-  src: url('/fonts/LXGWWenKai-Medium.ttf') format('truetype');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'LXGWWenKai';
-  src: url('/fonts/LXGWWenKai-Regular.ttf') format('truetype');
+  src: url('/fonts/LXGWWenKai-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
+
+/* 如果需要其他字重，可以使用系统字体或浏览器默认回退 */
+/* 例如：font-weight: 300 时会自动使用 lighter 变体 */
