@@ -46,11 +46,11 @@ HPACK算法
 
 #### TCP握手TLS握手整合
 
-![7](https://raw.githubusercontent.com/AbyssPraise/DrawingBoard/main/image/7.png)
+![7](/images/blog/7.png)
 
 #### QUIC层快不是因为基于UDP
 
-![8](https://raw.githubusercontent.com/AbyssPraise/DrawingBoard/main/image/8.jpg)
+![8](/images/blog/8.jpg)
 
 基于UDP是为了能够广泛部署
 

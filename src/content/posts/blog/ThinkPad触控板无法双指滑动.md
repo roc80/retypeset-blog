@@ -23,7 +23,7 @@ ThinkPad触控板无法双指滑动，很难受，根本用不了。
 
 1. 在[这里](https://pcsupport.lenovo.com/us/en)输入MachineTypeModule(可以在BIOS看到)
 2. 出现对应机型，输入序列码SerialNumber(BIOS中可以看到)
-3. ![think-pad-touch-pad-1](/images/think-pad-touch-pad-1.png)
+3. ![think-pad-touch-pad-1](/images/blog/think-pad-touch-pad-1.png)
 4. 安装必要的 LenovoBridgeService后就可以开始在线更新了。
 
 驱动更新完成后，重启PC，就可以双指滑动了。

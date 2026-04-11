@@ -97,25 +97,25 @@ public class RepeatableRequestWrapper extends HttpServletRequestWrapper {
 
 3. 我在filter中，读了request的InputStream，存到了body中。我自定义的Wrapper没有实现getParts()
 
-4. ![alt text](https://raw.githubusercontent.com/roc80/DrawingBoard/main/image/image.png)
+4. ![alt text](/images/blog/image.png)
 
-5. ![alt text](https://raw.githubusercontent.com/roc80/DrawingBoard/main/image/image-1.png) 到这里的时候，parts里面已经有数据了。parts中的数据什么时候set进来的？
+5. ![alt text](/images/blog/image-1.png) 到这里的时候，parts里面已经有数据了。parts中的数据什么时候set进来的？
 
 6. `getParameter()`解析Request参数的时候，就解析了parts
-![alt text](https://raw.githubusercontent.com/roc80/DrawingBoard/main/image/image-2.png)
+![alt text](/images/blog/image-2.png)
 
 7. 到这里先偷懒，放弃继续挖下去。
 
 ### 总结
 我自定义的RepeatableRequestWrapper没有实现getParts()方法。
 
-![alt text](https://raw.githubusercontent.com/roc80/DrawingBoard/main/image/image-3.png) 这里getMatchingRequest() 从自定义的RepeatableRequestWrapper 一直找到了Request才找到match的。
+![alt text](/images/blog/image-3.png) 这里getMatchingRequest() 从自定义的RepeatableRequestWrapper 一直找到了Request才找到match的。
 
 于是，getParameter()就到了Request，Request就解析了parts并存储。
 
 后面到了DispatcherServlet的逻辑，解析Multipart，回到了一开始的`StandardMultipartHttpServletRequest#parseRequest()方法中的request.getParts()` 
 
-![alt text](https://raw.githubusercontent.com/roc80/DrawingBoard/main/image/image-4.png) 这里先调用RepeatableRequestWrapper的 getParts,由于没有实现，层层向上，最终到了Request的getParts()
+![alt text](/images/blog/image-4.png) 这里先调用RepeatableRequestWrapper的 getParts,由于没有实现，层层向上，最终到了Request的getParts()
 
 **最终的解决方案：
 RepeatableRequestWrapper内，对于mutipart类型的请求，不要去读Stream，不做缓存。**

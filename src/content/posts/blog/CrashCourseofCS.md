@@ -16,7 +16,7 @@ abbrlink: crash-course-of-cs
 
 #### Pipelining流水线parallelize
 
-![1](https://raw.githubusercontent.com/AbyssPraise/DrawingBoard/main/image/1.png)
+![1](/images/blog/1.png)
 
 ##### 存在的问题
 
@@ -33,7 +33,7 @@ abbrlink: crash-course-of-cs
 
 ## 冯﹒诺依曼结构
 
-![2](https://raw.githubusercontent.com/AbyssPraise/DrawingBoard/main/image/2.png)
+![2](/images/blog/2.png)
 
 ## turing
 
@@ -41,7 +41,7 @@ abbrlink: crash-course-of-cs
 
 ### 停机问题
 
-![3](https://raw.githubusercontent.com/AbyssPraise/DrawingBoard/main/image/3.png)
+![3](/images/blog/3.png)
 
 停机问题说明了：**不是所有问题都能用计算解决**
 
@@ -57,7 +57,7 @@ abbrlink: crash-course-of-cs
 
 ## 光刻
 
-![4](https://raw.githubusercontent.com/AbyssPraise/DrawingBoard/main/image/4.png)
+![4](/images/blog/4.png)
 
 ## 文件系统
 
@@ -139,9 +139,9 @@ Base and Modulus are public, but exponent is secret.
 
 It's difficult to get the value of E arrcoding to B,M and R.
 
-![5](https://raw.githubusercontent.com/AbyssPraise/DrawingBoard/main/image/5.png)
+![5](/images/blog/5.png)
 
-![6](https://raw.githubusercontent.com/AbyssPraise/DrawingBoard/main/image/6.png)
+![6](/images/blog/6.png)
 
 ## MachineLearning
 
