@@ -49,13 +49,14 @@ const { Content, headings, remarkPluginFrontmatter } = await render(post)
   postTitle={post.data.title}
   postDescription={description}
   postSlug={post.id}
+  enableSearch={true}
   >
   <article class="heti">
     <div class="relative">
       <!-- Go Back Button On Desktop -->
       <BackButton />
       <!-- Title -->
-      <h1 class="post-title">
+      <h1 class="post-title" data-pagefind-meta="title">
         <span
           transition:name={`post-${slug}`}
           data-disable-theme-transition
