@@ -25,6 +25,7 @@
     "astro": "^5.13.7",
     "astro-compress": "^2.3.8",
     "astro-og-canvas": "^0.7.0",
+    "astro-pagefind": "^2.0.0",
     "canvaskit-wasm": "^0.40.0",
     "dayjs": "^1.11.18",
     "feed": "^5.1.0",

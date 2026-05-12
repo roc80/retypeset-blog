@@ -1,5 +1,7 @@
 ---
+import SearchIcon from '@/assets/icons/search-icon.svg'
 import ThemeToggleIcon from '@/assets/icons/theme-toggle.svg'
+import Search from 'astro-pagefind/components/Search.astro'
 import { themeConfig } from '@/config'
 
 const {
@@ -11,6 +13,18 @@ const {
 <div
   class="absolute right-7.25vw top-14.6 flex gap-6 min-[823px]:max-lg:right-[calc(50vw-22rem)] lg:(fixed bottom-[min(10.27rem+1.92vw,12rem)] right-[max(5rem,calc(50vw-35rem))] top-auto w-14rem)"
 >
+  <!-- Search Toggle -->
+  <button
+    id="search-toggle-button"
+    class="aspect-square w-4 c-secondary active:scale-90 hover:c-primary"
+    aria-label="Open search"
+  >
+    <SearchIcon
+      aria-hidden="true"
+      fill="currentColor"
+    />
+  </button>
+
   <!-- Theme Toggle -->
   <button
     id="theme-toggle-button"
@@ -22,6 +36,29 @@ const {
       fill="currentColor"
     />
   </button>
+</div>
+
+<!-- Search Modal -->
+<div
+  id="search-modal"
+  class="search-modal hidden"
+  aria-hidden="true"
+>
+  <div class="search-modal-backdrop" id="search-modal-backdrop"></div>
+  <div class="search-modal-content">
+    <button
+      id="search-close-button"
+      class="search-close-button"
+      aria-label="Close search"
+    >
+      ✕
+    </button>
+    <Search
+      instance="modal-search"
+      className="modal-search"
+      searchboxOptions={{ placeholder: "搜索文章..." }}
+    />
+  </div>
 </div>
 
 <!-- Theme Toggle Script >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
@@ -91,4 +128,160 @@ window.matchMedia('(prefers-color-scheme: dark)')
     // Apply system theme preference
     applyTheme(isDark)
   })
+</script>
+
+<!-- Search Modal Styles >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
+<style>
+  .search-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 15vh;
+  }
+
+  .search-modal.hidden {
+    display: none;
+  }
+
+  .search-modal[aria-hidden="true"] {
+    display: none;
+  }
+
+  .search-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+  }
+
+  .search-modal-content {
+    position: relative;
+    width: 90%;
+    max-width: 600px;
+    background: var(--bg-color, #fff);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  }
+
+  :global(html.dark) .search-modal-content {
+    background: var(--bg-color, #1a1a1a);
+  }
+
+  .search-close-button {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    background: transparent;
+    color: var(--text-color, inherit);
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+
+  .search-close-button:hover {
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  :global(html.dark) .search-close-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .modal-search {
+    --pf-background: transparent;
+    --pf-text-color: inherit;
+  }
+
+  .modal-search :global(pagefind-searchbox) {
+    width: 100%;
+  }
+
+  .modal-search :global(input) {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1.125rem;
+    border: 1px solid currentColor;
+    border-radius: 8px;
+    background: transparent;
+  }
+</style>
+
+<!-- Search Modal Script >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
+<script is:inline>
+function openSearchModal() {
+  const modal = document.getElementById('search-modal')
+  if (modal) {
+    modal.classList.remove('hidden')
+    modal.setAttribute('aria-hidden', 'false')
+    // Focus on search input after a short delay
+    setTimeout(() => {
+      const input = modal.querySelector('input')
+      if (input) input.focus()
+    }, 100)
+  }
+}
+
+function closeSearchModal() {
+  const modal = document.getElementById('search-modal')
+  if (modal) {
+    modal.classList.add('hidden')
+    modal.setAttribute('aria-hidden', 'true')
+  }
+}
+
+// Handle search toggle click
+function handleSearchToggleClick(e) {
+  const target = e.target instanceof Element ? e.target : null
+  const button = target?.closest('#search-toggle-button')
+
+  if (!button) {
+    return
+  }
+
+  openSearchModal()
+}
+
+// Handle close button click
+function handleSearchCloseClick(e) {
+  const target = e.target instanceof Element ? e.target : null
+  const button = target?.closest('#search-close-button')
+
+  if (!button) {
+    return
+  }
+
+  closeSearchModal()
+}
+
+// Handle backdrop click
+function handleBackdropClick(e) {
+  const target = e.target instanceof Element ? e.target : null
+  const backdrop = target?.closest('#search-modal-backdrop')
+
+  if (backdrop) {
+    closeSearchModal()
+  }
+}
+
+// Handle ESC key
+function handleEscapeKey(e) {
+  if (e.key === 'Escape') {
+    closeSearchModal()
+  }
+}
+
+document.addEventListener('click', handleSearchToggleClick, { passive: true })
+document.addEventListener('click', handleSearchCloseClick, { passive: true })
+document.addEventListener('click', handleBackdropClick, { passive: true })
+document.addEventListener('keydown', handleEscapeKey, { passive: true })
 </script>
