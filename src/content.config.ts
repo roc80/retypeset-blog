@@ -59,4 +59,15 @@ const about = defineCollection({
   }),
 })
 
-export const collections = { posts, weeks, about }
+const quotes = defineCollection({
+  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/quotes' }),
+  schema: z.object({
+    title: z.string().optional(),
+    pubDate: z.date().optional(),
+    tags: z.array(z.string()).optional().default([]),
+    source: z.string().optional(),
+    lang: z.enum(['', ...allLocales]).optional().default(''),
+  }),
+})
+
+export const collections = { posts, weeks, about, quotes }

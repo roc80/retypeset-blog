@@ -1,0 +1,172 @@
+---
+import { getCollection } from 'astro:content'
+import { defaultLocale } from '@/config'
+import RefreshIcon from '@/assets/icons/refresh-icon.svg'
+import MarkdownIt from 'markdown-it'
+
+interface Props {
+  lang?: string
+}
+
+const { lang = defaultLocale } = Astro.props
+
+// Initialize markdown renderer
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+})
+
+// Get all quotes for current language
+const allQuotes = await getCollection('quotes', ({ data }) => {
+  return data.lang === lang || data.lang === ''
+})
+
+// Get random quote (server-side)
+const getRandomQuote = () => {
+  if (allQuotes.length === 0) return null
+  const randomIndex = Math.floor(Math.random() * allQuotes.length)
+  return allQuotes[randomIndex]
+}
+
+const quote = getRandomQuote()
+
+// Render markdown to HTML
+const renderedContent = quote ? md.render(quote.body || '') : ''
+
+// Format date
+const formatDate = (date: Date) => {
+  return new Intl.DateTimeFormat(lang === 'zh' ? 'zh-CN' : 'en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(date)
+}
+
+// Serialize quotes for client-side use
+const serializedQuotes = allQuotes.map(q => ({
+  id: q.id,
+  body: q.body || '',
+  html: md.render(q.body || ''),
+  pubDate: q.data.pubDate?.toISOString(),
+  source: q.data.source,
+  tags: q.data.tags,
+}))
+---
+
+{
+  quote && (
+    <section class="quote-card mb-7.5 lg:mb-10">
+      <div class="quote-header mb-4 flex items-center justify-between">
+        <h2 class="text-3 font-semibold c-primary cjk:tracking-0.02em lg:text-4">
+          今日短句
+        </h2>
+        <button
+          id="quote-refresh"
+          class="quote-refresh-btn group inline-flex aspect-square w-8 items-center justify-center rounded border border-secondary/15 transition-all hover:border-primary/15 hover:bg-primary/5"
+          aria-label="换一条"
+        >
+          <RefreshIcon
+            class="w-4 c-secondary transition-all group-hover:c-primary group-active:scale-90"
+            aria-hidden="true"
+          />
+        </button>
+      </div>
+
+      <div class="quote-content-wrapper rounded-lg border border-secondary/15 bg-background p-5 shadow-sm lg:p-6">
+        <div
+          id="quote-text-container"
+          class="quote-text-container heti max-h-125 overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-primary/20"
+        >
+          <div
+            id="quote-text"
+            class="quote-text leading-relaxed c-secondary"
+            set:html={renderedContent}
+          />
+        </div>
+
+        <div class="quote-meta mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-2.8 c-secondary/60 lg:text-3">
+          {quote.data.pubDate && (
+            <span class="quote-date">
+              {formatDate(quote.data.pubDate)}
+            </span>
+          )}
+          {quote.data.source && (
+            <>
+              <span class="quote-separator">·</span>
+              <span class="quote-source">
+                {quote.data.source}
+              </span>
+            </>
+          )}
+          {quote.data.tags && quote.data.tags.length > 0 && (
+            <>
+              <span class="quote-separator">·</span>
+              <div class="quote-tags flex flex-wrap gap-2">
+                {quote.data.tags.map(tag => (
+                  <span class="quote-tag rounded bg-secondary/5 px-2 py-0.5 text-2.6 c-secondary/80">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <!-- Client-side script for manual refresh -->
+      <script define:vars={{ serializedQuotes, currentQuote: quote }}>
+        const refreshBtn = document.getElementById('quote-refresh')
+        const quoteText = document.getElementById('quote-text')
+        const quoteDate = document.querySelector('.quote-date')
+        const quoteSource = document.querySelector('.quote-source')
+        const quoteTags = document.querySelector('.quote-tags')
+
+        // Get random quote different from current
+        const getRandomQuote = () => {
+          if (serializedQuotes.length === 0) return null
+          const currentIndex = serializedQuotes.findIndex(q => q.id === currentQuote?.id)
+          let newIndex
+          do {
+            newIndex = Math.floor(Math.random() * serializedQuotes.length)
+          } while (newIndex === currentIndex && serializedQuotes.length > 1)
+          return serializedQuotes[newIndex]
+        }
+
+        if (refreshBtn) {
+          refreshBtn.addEventListener('click', () => {
+            const newQuote = getRandomQuote()
+            if (!newQuote) return
+
+            // Animation feedback
+            refreshBtn.classList.add('animate-spin')
+            setTimeout(() => refreshBtn.classList.remove('animate-spin'), 500)
+
+            // Fade effect
+            quoteText?.classList.add('op-50')
+
+            setTimeout(() => {
+              if (quoteText) quoteText.innerHTML = newQuote.html
+              if (quoteDate && newQuote.pubDate) {
+                quoteDate.textContent = new Date(newQuote.pubDate).toLocaleDateString('zh-CN', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })
+              }
+              if (quoteSource && newQuote.source) {
+                quoteSource.textContent = newQuote.source
+              }
+              if (quoteTags && newQuote.tags) {
+                quoteTags.innerHTML = newQuote.tags.map(tag =>
+                  `<span class="quote-tag rounded bg-secondary/5 px-2 py-0.5 text-2.6 c-secondary/80">#${tag}</span>`
+                ).join('')
+              }
+              quoteText?.classList.remove('op-50')
+            }, 200)
+          })
+        }
+      </script>
+    </section>
+  )
+}

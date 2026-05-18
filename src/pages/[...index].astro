@@ -1,5 +1,6 @@
 ---
 import PostList from "@/components/PostList.astro";
+import QuoteCard from "@/components/QuoteCard.astro";
 import { defaultLocale } from "@/config";
 import Layout from "@/layouts/Layout.astro";
 import { getPinnedPosts, getPostsByYear } from "@/utils/content";
@@ -18,6 +19,9 @@ const postsByYear = await getPostsByYear(lang);
 ---
 
 <Layout>
+  <!-- Quote Card -->
+  <QuoteCard {lang} />
+
   <!-- Pinned Posts -->
   {
     pinnedPosts.length > 0 && (
