@@ -26,6 +26,22 @@ const imageConfig = imageHostURL
   ? { image: { domains: [imageHostURL], remotePatterns: [{ protocol: 'https' }] } }
   : {}
 
+// Check if running in dev build mode (skip image compression)
+const isDevBuild = process.env.SKIP_COMPRESS === 'true' || process.argv.includes('--skip-compress')
+
+// Create compress integration conditionally
+const compressIntegration = isDevBuild
+  ? []
+  : [
+      Compress({
+        CSS: true,
+        HTML: true,
+        Image: true,
+        JavaScript: true,
+        SVG: false,
+      }),
+    ]
+
 export default defineConfig({
   site,
   base,
@@ -53,13 +69,7 @@ export default defineConfig({
       },
     }),
     sitemap(),
-    Compress({
-      CSS: true,
-      HTML: true,
-      Image: true,
-      JavaScript: true,
-      SVG: false,
-    }),
+    ...compressIntegration,
     pagefind(),
   ],
   markdown: {

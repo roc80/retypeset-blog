@@ -397,6 +397,13 @@ async function applyLqipToHtml(lqipMap: LqipMap): Promise<number> {
  * Coordinates LQIP generation and application process
  */
 async function main() {
+  // Check if LQIP should be skipped via command line argument
+  const skipLqip = process.argv.includes('--skip')
+  if (skipLqip || process.env.SKIP_LQIP === 'true') {
+    console.log('⏭️  LQIP processing skipped')
+    return
+  }
+
   console.log('🔍 Starting LQIP processing...')
 
   const { fileMappings, imageStats, existingMap } = await scanAndAnalyzeImages()
