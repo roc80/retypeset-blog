@@ -169,9 +169,11 @@ async function main(): Promise<void> {
       const n = imgIndex + 1
       try {
         const bytes = await downloadTgPhoto(largest.file_id)
-        writeFileSync(join(imgDir, `img${n}.jpg`), bytes)
+        // 文件名用消息时间戳(+ message_id 防同秒碰撞)；[图片N] 仍是给 GLM 引用的顺序编号
+        const fileName = `${dayjs.unix(msg.date).format('YYYYMMDD-HHmmss')}-${msg.message_id}.jpg`
+        writeFileSync(join(imgDir, fileName), bytes)
         imgIndex = n
-        const publicPath = `/images/weeks/${year}/img${n}.jpg`
+        const publicPath = `/images/weeks/${year}/${fileName}`
         imageMap.set(n, publicPath)
         lines.push(`「${when}」 [图片${n}]${text ? ` ${text}` : ''}`)
         console.log(`🖼️  下载图片${n} -> ${publicPath}`)
