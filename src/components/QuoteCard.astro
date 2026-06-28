@@ -114,56 +114,79 @@ const serializedQuotes = allQuotes.map(q => ({
         </div>
       </div>
 
-      <!-- Client-side script for manual refresh -->
+      <!--
+        Client-side script: 页面加载即随机展示一条，刷新按钮再随机换一条。
+        本站为静态生成（SSG），构建时烤进 HTML 的只是同一条兜底短句，
+        所以"每次刷新换一条 / 不总从某句开始"必须在客户端按需执行。
+      -->
       <script define:vars={{ serializedQuotes, currentQuote: quote }}>
         const refreshBtn = document.getElementById('quote-refresh')
         const quoteText = document.getElementById('quote-text')
-        const quoteDate = document.querySelector('.quote-date')
-        const quoteSource = document.querySelector('.quote-source')
-        const quoteTags = document.querySelector('.quote-tags')
+        const quoteMeta = document.querySelector('.quote-meta')
 
-        // Get random quote different from current
-        const getRandomQuote = () => {
-          if (serializedQuotes.length === 0) return null
-          const currentIndex = serializedQuotes.findIndex(q => q.id === currentQuote?.id)
-          let newIndex
-          do {
-            newIndex = Math.floor(Math.random() * serializedQuotes.length)
-          } while (newIndex === currentIndex && serializedQuotes.length > 1)
-          return serializedQuotes[newIndex]
+        let currentId = currentQuote?.id ?? null
+
+        const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        }[c]))
+
+        // 按当前短句重建 日期/来源/标签，保证任意短句的 meta 都能正确显示
+        const buildMetaHtml = (q) => {
+          const parts = []
+          if (q.pubDate) {
+            const d = new Date(q.pubDate)
+            parts.push(`<span class="quote-date">${d.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}</span>`)
+          }
+          if (q.source) {
+            parts.push('<span class="quote-separator">·</span>')
+            parts.push(`<span class="quote-source">${escapeHtml(q.source)}</span>`)
+          }
+          if (q.tags && q.tags.length > 0) {
+            parts.push('<span class="quote-separator">·</span>')
+            parts.push(`<div class="quote-tags flex flex-wrap gap-2">${q.tags.map(tag => `<span class="quote-tag rounded bg-secondary/5 px-2 py-0.5 text-2.6 c-secondary/80">#${escapeHtml(tag)}</span>`).join('')}</div>`)
+          }
+          return parts.join('')
         }
 
+        const renderQuote = (q, animate = false) => {
+          if (!q || !quoteText) return
+          const apply = () => {
+            currentId = q.id
+            quoteText.innerHTML = q.html
+            if (quoteMeta) quoteMeta.innerHTML = buildMetaHtml(q)
+            quoteText.classList.remove('op-50')
+          }
+          if (animate) {
+            quoteText.classList.add('op-50')
+            setTimeout(apply, 200)
+          }
+          else {
+            apply()
+          }
+        }
+
+        // 从全部短句里随机抽一条，可指定排除某条（避免与当前重复）
+        const pickRandom = (excludeId = null) => {
+          if (serializedQuotes.length === 0) return null
+          if (serializedQuotes.length === 1) return serializedQuotes[0]
+          let q
+          do {
+            q = serializedQuotes[Math.floor(Math.random() * serializedQuotes.length)]
+          } while (q.id === excludeId)
+          return q
+        }
+
+        // ① 页面加载即随机展示一条 —— 修复"刷新网页不换短句 / 总从某条开始"
+        renderQuote(pickRandom())
+
+        // ② 点击刷新按钮再随机换一条（避免与当前重复）
         if (refreshBtn) {
           refreshBtn.addEventListener('click', () => {
-            const newQuote = getRandomQuote()
-            if (!newQuote) return
-
-            // Animation feedback
+            const q = pickRandom(currentId)
+            if (!q) return
             refreshBtn.classList.add('animate-spin')
             setTimeout(() => refreshBtn.classList.remove('animate-spin'), 500)
-
-            // Fade effect
-            quoteText?.classList.add('op-50')
-
-            setTimeout(() => {
-              if (quoteText) quoteText.innerHTML = newQuote.html
-              if (quoteDate && newQuote.pubDate) {
-                quoteDate.textContent = new Date(newQuote.pubDate).toLocaleDateString('zh-CN', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })
-              }
-              if (quoteSource && newQuote.source) {
-                quoteSource.textContent = newQuote.source
-              }
-              if (quoteTags && newQuote.tags) {
-                quoteTags.innerHTML = newQuote.tags.map(tag =>
-                  `<span class="quote-tag rounded bg-secondary/5 px-2 py-0.5 text-2.6 c-secondary/80">#${tag}</span>`
-                ).join('')
-              }
-              quoteText?.classList.remove('op-50')
-            }, 200)
+            renderQuote(q, true)
           })
         }
       </script>
