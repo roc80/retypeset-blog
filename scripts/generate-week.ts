@@ -231,15 +231,9 @@ ${body}
   writeFileSync(fullPath, content)
   console.log(`✅ 周记已生成: ${fullPath} (abbrlink=${abbrlink})`)
 
-  // 7. 清空 inbox（仅生成成功后）
-  const delRes = await fetch(`${WORKER_URL}/inbox`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${WORKER_SECRET}` },
-  })
-  if (!delRes.ok)
-    console.error(`⚠️  清空 inbox 失败: ${delRes.status}（下周可能重复这些消息）`)
-  else
-    console.log('🧹 inbox 已清空')
+  // 注：inbox 的清空已移到工作流「push 成功后」执行（见 .github/workflows/auto-week.yml 的
+  // "清空 Worker inbox" 步骤）。这样即使 push 失败，消息也不会被清掉、本周内容不会丢失，
+  // 下次重跑会重新生成同一周的周记（按 ISO 周，同周同名文件，幂等覆盖）。本脚本只负责生成。
 }
 
 main().catch((error) => {

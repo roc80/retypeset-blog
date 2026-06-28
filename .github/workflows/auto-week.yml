@@ -48,9 +48,20 @@ jobs:
             echo "本周无新内容，跳过提交与部署。"
           else
             git commit -m "chore(week): auto weekly journal $(TZ=Asia/Shanghai date +%Y-%m-%d)"
+            # 先拉取远端最新并 rebase，避免 checkout 后 master 被推进导致 push 被拒(non-fast-forward)
+            git pull --rebase origin master
             git push
             echo "committed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # 仅在 push 成功后才清空 inbox —— 若上面 push 失败，inbox 保留消息，下次重跑会重新生成(幂等)。
+      - name: 清空 Worker inbox（仅 push 成功后）
+        if: steps.commit.outputs.committed == 'true'
+        env:
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
+        run: |
+          curl -sS -X DELETE -H "Authorization: Bearer ${WORKER_SECRET}" "${WORKER_URL}/inbox"
 
       # 用默认 GITHUB_TOKEN 推送的 commit 不会触发其他 workflow（GitHub 防循环），
       # 所以 deploy.yml 不会被本次 push 唤醒 —— 这里自己执行 build + rsync 完成上线。
