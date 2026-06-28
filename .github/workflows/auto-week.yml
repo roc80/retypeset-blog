@@ -1,0 +1,70 @@
+name: Auto Weekly Journal
+
+# 仅定时 + 手动触发，不监听 push（避免和 deploy.yml 互相触发）
+on:
+  schedule:
+    - cron: '0 4 * * 0'   # 周日 04:00 UTC = 12:00 北京时间
+  workflow_dispatch:
+
+permissions:
+  contents: write   # 允许 GITHUB_TOKEN 把生成的源文件推回 master
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install pnpm globally
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: 生成周记（拉消息 / 下图 / 调 GLM / 写文件 / 清 inbox）
+        env:
+          TZ: Asia/Shanghai            # 让脚本里 dayjs 取北京时间
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
+          GLM_MODEL: ${{ secrets.GLM_MODEL }}   # 可选，留空则默认 glm-4.6
+        run: pnpm tsx scripts/generate-week.ts
+
+      - name: 推送生成的源文件到 master
+        id: commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+            echo "本周无新内容，跳过提交与部署。"
+          else
+            git commit -m "chore(week): auto weekly journal $(TZ=Asia/Shanghai date +%Y-%m-%d)"
+            git push
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 用默认 GITHUB_TOKEN 推送的 commit 不会触发其他 workflow（GitHub 防循环），
+      # 所以 deploy.yml 不会被本次 push 唤醒 —— 这里自己执行 build + rsync 完成上线。
+      - name: 构建站点
+        if: steps.commit.outputs.committed == 'true'
+        run: pnpm build
+
+      - name: Deploy via Rsync
+        if: steps.commit.outputs.committed == 'true'
+        uses: burnett01/rsync-deployments@6.0.0
+        with:
+          switches: -avzr --delete --exclude='.user.ini'
+          path: dist/
+          remote_path: /www/wwwroot/rocli.cn/
+          remote_host: ${{ secrets.SSH_HOST }}
+          remote_user: ${{ secrets.SSH_USERNAME }}
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
