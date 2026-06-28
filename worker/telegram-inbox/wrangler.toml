@@ -6,7 +6,7 @@ compatibility_date = "2024-11-01"
 #      npx wrangler kv namespace create INBOX
 [[kv_namespaces]]
 binding = "INBOX"
-id = "在这里填写你的 KV namespace id"
+id = "1818bbe4f0984f958697b2ae6bb5e836"
 
 # 2) 部署后设置 secret（不要写进本文件，避免泄露）:
 #      npx wrangler secret put SECRET_TOKEN    # webhook 路径校验，自定义随机串
