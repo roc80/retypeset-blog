@@ -1,0 +1,13 @@
+name = "telegram-inbox"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+# 1) 先创建 KV namespace（把返回的 "id" 填到下面）:
+#      npx wrangler kv namespace create INBOX
+[[kv_namespaces]]
+binding = "INBOX"
+id = "1818bbe4f0984f958697b2ae6bb5e836"
+
+# 2) 部署后设置 secret（不要写进本文件，避免泄露）:
+#      npx wrangler secret put SECRET_TOKEN    # webhook 路径校验，自定义随机串
+#      npx wrangler secret put WORKER_SECRET   # /inbox 端点的 Bearer，与 GitHub Secret 同值
