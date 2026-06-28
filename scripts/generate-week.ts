@@ -13,14 +13,18 @@
  *   GLM_MODEL (可选)            — 默认 glm-4.6；可设为 glm-4-flash 等
  *   TZ                          — 由 workflow 设为 Asia/Shanghai，让 dayjs 取北京时间
  *
- * 本周 inbox 为空时不写文件、不提交（避免空周记）。编号逻辑与 scripts/new-week.ts 一致。
+ * 本周 inbox 为空时不写文件、不提交（避免空周记）。
+ * 周记名按真实周次（ISO week）：如 2026-06-28 是第 26 周 → 2026-Week26。
  */
 
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import process from 'node:process'
 import dayjs from 'dayjs'
+import isoWeek from 'dayjs/plugin/isoWeek'
 import { themeConfig } from '../src/config'
+
+dayjs.extend(isoWeek)
 
 const WEEKS_DIR = 'src/content/posts/weeks'
 const IMAGES_DIR = 'public/images/weeks'
@@ -82,7 +86,7 @@ async function downloadTgPhoto(fileId: string): Promise<Uint8Array> {
   return new Uint8Array(await fileRes.arrayBuffer())
 }
 
-/** 调智谱 GLM (OpenAI 兼容接口) 生成周记正文 */
+/** 调智谱 GLM (OpenAI 兼容接口) 生成周记正文（流水账风格：不修饰、不升华，严格按消息行文） */
 async function generateBody(transcript: string): Promise<string> {
   const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
     method: 'POST',
@@ -92,16 +96,18 @@ async function generateBody(transcript: string): Promise<string> {
     },
     body: JSON.stringify({
       model: GLM_MODEL,
-      temperature: 0.7,
+      temperature: 0.3,
       messages: [
         {
           role: 'system',
           content:
-            '你是一个帮我写个人周记的助手。我会给你本周在 Telegram 里随手记下的碎片（文字 + 图片占位 [图片N]）。'
-            + '请据此写一篇自然、真诚的周记 markdown **正文**：不要输出 frontmatter，不要用代码块包裹。'
-            + '可以自由分节（如 工作 / 生活 / 周末 / 感想），不必每节都有；保留我提到的具体细节和语气，适度润色但不要编造没有的事实。'
-            + '想在合适位置放图片时，写 [图片N] 占位（由后处理替换为真实图片），不必引用全部图片。'
-            + '篇幅适中，结尾可有一句感想。',
+            '你帮我写个人周记。我会给你本周在 Telegram 里记下的碎片（文字 + 图片占位 [图片N]）。'
+            + '风格要求：记流水账——严格按我给的文字和图片行文，'
+            + '不要添加任何修饰词、形容词、感悟、总结或升华，不要"润色"，不要编造我没有提到的内容。'
+            + '按时间顺序把事情说清楚、句子通顺可读即可，平铺直叙。'
+            + '可以用日期或"周一/周二"简单分节，但不要硬凑小标题。'
+            + '想放图片的位置写 [图片N] 占位（由后处理替换为真实图片），不必引用全部图片。'
+            + '只输出 markdown 正文，不要 frontmatter，不要代码块包裹。',
         },
         { role: 'user', content: transcript },
       ],
@@ -118,28 +124,17 @@ async function generateBody(transcript: string): Promise<string> {
     .trim()
 }
 
-/** 计算目标文件名与路径，编号逻辑与 scripts/new-week.ts 一致（当年目录 max + 1） */
+/** 计算目标文件名与路径：周记名用真实周次（ISO week），如 2026-06-28 → 2026-Week26。
+ *  isoWeekYear 与 isoWeek 配套使用，跨年边界（12 月底 / 1 月初）也正确。 */
 function resolveTarget(): { fullPath: string, title: string, abbrlink: string } {
-  const currentYear = String(dayjs().year())
-  const weeksDir = join(WEEKS_DIR, currentYear)
+  const isoYear = dayjs().isoWeekYear()
+  const isoWeekNum = dayjs().isoWeek()
+  const yearStr = String(isoYear)
+  const weeksDir = join(WEEKS_DIR, yearStr)
   if (!existsSync(weeksDir))
     mkdirSync(weeksDir, { recursive: true })
 
-  const files = readdirSync(weeksDir).filter(f => f.endsWith('.md'))
-  const weekPattern = new RegExp(`^${currentYear}-Week(\\d+)(?:-.*)?\\.md$`, 'i')
-  let nextWeek = 1
-  if (files.length > 0) {
-    const nums = files
-      .map((f) => {
-        const m = f.match(weekPattern)
-        return m ? Number.parseInt(m[1], 10) : 0
-      })
-      .filter(n => n > 0)
-    if (nums.length > 0)
-      nextWeek = Math.max(...nums) + 1
-  }
-
-  const title = `${currentYear}-Week${nextWeek}`
+  const title = `${yearStr}-Week${isoWeekNum}`
   const abbrlink = title.toLowerCase().replace(/\s+/g, '-')
   return { fullPath: join(weeksDir, `${title}.md`), title, abbrlink }
 }
@@ -153,8 +148,8 @@ async function main(): Promise<void> {
   }
   console.log(`📩 读取到 ${messages.length} 条消息`)
 
-  // 2. 算目标文件
-  const year = String(dayjs().year())
+  // 2. 算目标文件（周记名 = 真实周次）；图片年份与之保持一致
+  const year = String(dayjs().isoWeekYear())
   const { fullPath, title, abbrlink } = resolveTarget()
   const imgDir = join(IMAGES_DIR, year)
   if (!existsSync(imgDir))
