@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: 生成周记（拉消息 / 下图 / 调 GLM / 写文件 / 清 inbox）
+      - name: 生成周记（拉消息 / 按本周过滤 / 下图 / 调 GLM / 写文件）
         env:
           TZ: Asia/Shanghai            # 让脚本里 dayjs 取北京时间
           WORKER_URL: ${{ secrets.WORKER_URL }}
@@ -54,14 +54,9 @@ jobs:
             echo "committed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # 仅在 push 成功后才清空 inbox —— 若上面 push 失败，inbox 保留消息，下次重跑会重新生成(幂等)。
-      - name: 清空 Worker inbox（仅 push 成功后）
-        if: steps.commit.outputs.committed == 'true'
-        env:
-          WORKER_URL: ${{ secrets.WORKER_URL }}
-          WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
-        run: |
-          curl -sS -X DELETE -H "Authorization: Bearer ${WORKER_SECRET}" "${WORKER_URL}/inbox"
+      # inbox 不再清空：消息靠 Worker KV 写入时的 14 天 TTL 自动过期。
+      # 脚本按"当前 ISO 周"过滤，本周内任意时刻生成都能拿到本周完整消息（幂等）；
+      # 跨周消息自动被过滤排除，不会混入新一周的周记。
 
       # 用默认 GITHUB_TOKEN 推送的 commit 不会触发其他 workflow（GitHub 防循环），
       # 所以 deploy.yml 不会被本次 push 唤醒 —— 这里自己执行 build + rsync 完成上线。

@@ -1,8 +1,11 @@
 /**
  * Generate a weekly journal (周记) from this week's Telegram messages.
  *
- * 流程: 读 Cloudflare Worker /inbox → 直连 Telegram 下载图片 → 调智谱 GLM 生成正文
- *      → 写 src/content/posts/weeks/{年}/{年}-Week{N}.md → 清空 /inbox
+ * 流程: 读 Cloudflare Worker /inbox → 按"当前 ISO 周"过滤 → 直连 Telegram 下载图片 → 调智谱 GLM 生成正文
+ *      → 写 src/content/posts/weeks/{年}/{年}-Week{N}.md
+ *
+ * 幂等: inbox 不再清空（靠 Worker KV 写入时设的 14 天 TTL 自动过期）。本周内任意时刻生成，
+ *      都会按 ISO 周过滤出本周全部消息；跨周消息自动排除，不会混入。按 ISO 周同名文件覆盖。
  *
  * 运行: pnpm tsx scripts/generate-week.ts   (由 .github/workflows/auto-week.yml 周日定时调用)
  *
@@ -67,6 +70,17 @@ async function fetchInbox(): Promise<TgMessage[]> {
     throw new Error(`读取 inbox 失败: ${res.status} ${await res.text()}`)
   const data = (await res.json()) as { messages?: TgMessage[] }
   return data.messages ?? []
+}
+
+/**
+ * 判断给定 Unix 时间戳(秒)是否属于"当前 ISO 周"。
+ * 用 isoWeekYear + isoWeek 配套判定，跨年边界（12 月底 / 1 月初）也正确。
+ * inbox 不再清空，靠此函数按周过滤，保证本周任意时刻生成都拿到本周完整消息（幂等）。
+ */
+function isCurrentIsoWeek(unixTs: number): boolean {
+  const t = dayjs.unix(unixTs)
+  const now = dayjs()
+  return t.isoWeekYear() === now.isoWeekYear() && t.isoWeek() === now.isoWeek()
 }
 
 /** 通过 Telegram getFile 下载图片，返回字节 */
@@ -158,13 +172,14 @@ function resolveTarget(): { fullPath: string, title: string, abbrlink: string } 
 }
 
 async function main(): Promise<void> {
-  // 1. 读取消息
-  const messages = await fetchInbox()
+  // 1. 读取消息并按"当前 ISO 周"过滤（inbox 不清空，跨周消息自动排除，保证本周幂等）
+  const all = await fetchInbox()
+  const messages = all.filter(msg => isCurrentIsoWeek(msg.date))
   if (messages.length === 0) {
-    console.log('ℹ️  本周 inbox 为空，跳过生成。')
+    console.log(`ℹ️  本周 inbox 为空（历史消息 ${all.length} 条），跳过生成。`)
     return
   }
-  console.log(`📩 读取到 ${messages.length} 条消息`)
+  console.log(`📩 读取到 ${all.length} 条消息，本周占 ${messages.length} 条`)
 
   // 2. 算目标文件（周记名 = 真实周次）；图片年份与之保持一致
   const year = String(dayjs().isoWeekYear())
@@ -252,9 +267,9 @@ ${body}
   writeFileSync(fullPath, content)
   console.log(`✅ 周记已生成: ${fullPath} (abbrlink=${abbrlink})`)
 
-  // 注：inbox 的清空已移到工作流「push 成功后」执行（见 .github/workflows/auto-week.yml 的
-  // "清空 Worker inbox" 步骤）。这样即使 push 失败，消息也不会被清掉、本周内容不会丢失，
-  // 下次重跑会重新生成同一周的周记（按 ISO 周，同周同名文件，幂等覆盖）。本脚本只负责生成。
+  // 注：inbox 不再清空（不再调用 DELETE /inbox）。消息靠 Worker KV 写入时的 14 天 TTL 自动过期，
+  // 本周内任意时刻重跑都会按 ISO 周过滤出本周完整消息（同周同名文件覆盖，幂等）；失败重跑也安全，
+  // 因为消息从不主动删除。跨周后旧消息在 14 天内会被 TTL 清掉，或被本周过滤排除、不混入。
 }
 
 main().catch((error) => {
