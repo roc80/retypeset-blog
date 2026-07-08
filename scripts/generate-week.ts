@@ -88,39 +88,43 @@ async function downloadTgPhoto(fileId: string): Promise<Uint8Array> {
 
 /** 调智谱 GLM (OpenAI 兼容接口) 生成周记正文（流水账风格：不修饰、不升华，严格按消息行文） */
 async function generateBody(transcript: string): Promise<string> {
+  // —— Prompt 构建（结构化：规则用数组维护，追加新要求只需往 rules 里加一条，编号自动续上）——
+
+  // 输入格式说明
+  const inputFormat
+    = '你帮我写个人周记。我会把你本周在 Telegram 里记下的碎片逐条发给你，'
+      + '每条格式为：「MM-DD HH:mm」 内容（文字 或 [图片N] 占位）。'
+
+  // 规则列表（数组顺序即正文里的编号顺序）
+  const rules = [
+    '严格记流水账：忠于我给的内容，按时间顺序写成通顺的日记，不要添加修饰、感悟、总结或升华，不要"润色"，不要编造我没提到的事。',
+    '行首的「MM-DD HH:mm」只用于排序——正文里绝对不要出现具体几点几分（如 00:36、11:53），也不要在句首重复消息发送时间。按照我给你的Telegram消息顺序排版图片和文字，不要硬凑其他小标题。',
+    '把零碎的句子组织成连贯、可读的段落，平铺直叙，不要逐条罗列时间戳。',
+    '图片占位 `[图片N]`改为 `image-图片发送时的时间戳`，例如：[image-1783524787] ',
+    '正文里出现的英文冒号 ":" 一律替换为中文冒号 "："。',
+    '访问 https://rocli.cn/weeks/2025-week12/，读取内容，使你生成文章在排版、布局、文风上与之保持一致。',
+    '严格检查并纠正中文错别字与英文拼写错误（包括我消息里的笔误），但不要改变原意。',
+  ]
+
+  const systemContent = [
+    inputFormat,
+    '',
+    '要求：',
+    ...rules.map((rule, i) => `${i + 1}. ${rule}`),
+    '',
+  ].join('\n')
+
   const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${GLM_API_KEY}`,
+      'Authorization': `Bearer ${GLM_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       model: GLM_MODEL,
       temperature: 0.3,
       messages: [
-        {
-          role: 'system',
-          content:
-            '你帮我写个人周记。我会把你本周在 Telegram 里记下的碎片逐条发给你，每条格式为：\n'
-            + '「MM-DD HH:mm」 内容（文字 或 [图片N] 占位）。\n\n'
-            + '要求：\n'
-            + '1. 严格记流水账：忠于我给的内容，按时间顺序写成通顺的日记，'
-            + '不要添加修饰、感悟、总结或升华，不要"润色"，不要编造我没提到的事。\n'
-            + '2. 行首的「MM-DD HH:mm」只用于排序——正文里绝对不要出现具体几点几分（如 00:36、11:53）。'
-            + '可用日期（如"6月29日"）或"周一/周二"分节，但不要硬凑小标题。\n'
-            + '3. 把零碎的句子组织成连贯、可读的段落，平铺直叙，不要逐条罗列时间戳。\n'
-            + '4. 图片占位 [图片N] 必须独占一行：前后不要加逗号、句号、引号或任何标点，也不要和文字写在同一行。不必引用全部图片。\n'
-            + '5. 正文里出现的英文冒号 ":" 一律替换为中文冒号 "："。\n\n'
-            + '示例——\n'
-            + '输入：\n'
-            + '「06-29 00:36」 [图片1]\n'
-            + '「06-29 11:53」 这周周一测试一下周记自动生成。\n\n'
-            + '输出：\n'
-            + '6月29日\n\n'
-            + '[图片1]\n\n'
-            + '这周周一测试一下周记自动生成。\n\n'
-            + '只输出 markdown 正文，不要 frontmatter，不要代码块包裹。',
-        },
+        { role: 'system', content: systemContent },
         { role: 'user', content: transcript },
       ],
     }),
@@ -136,8 +140,10 @@ async function generateBody(transcript: string): Promise<string> {
     .trim()
 }
 
-/** 计算目标文件名与路径：周记名用真实周次（ISO week），如 2026-06-28 → 2026-Week26。
- *  isoWeekYear 与 isoWeek 配套使用，跨年边界（12 月底 / 1 月初）也正确。 */
+/**
+ * 计算目标文件名与路径：周记名用真实周次（ISO week），如 2026-06-28 → 2026-Week26。
+ *  isoWeekYear 与 isoWeek 配套使用，跨年边界（12 月底 / 1 月初）也正确。
+ */
 function resolveTarget(): { fullPath: string, title: string, abbrlink: string } {
   const isoYear = dayjs().isoWeekYear()
   const isoWeekNum = dayjs().isoWeek()
@@ -169,7 +175,7 @@ async function main(): Promise<void> {
 
   // 3. 下载图片 + 拼接 transcript
   let imgIndex = 0
-  const imageMap = new Map<number, string>() // 图片序号 -> 公开路径
+  const imageMap = new Map<number, { path: string, stamp: string }>() // 图片序号 -> {公开路径, 发送时刻时间戳}
   const lines: string[] = []
 
   for (const msg of messages) {
@@ -181,12 +187,13 @@ async function main(): Promise<void> {
       const n = imgIndex + 1
       try {
         const bytes = await downloadTgPhoto(largest.file_id)
-        // 文件名用消息时间戳(+ message_id 防同秒碰撞)；[图片N] 仍是给 GLM 引用的顺序编号
-        const fileName = `${dayjs.unix(msg.date).format('YYYYMMDD-HHmmss')}-${msg.message_id}.jpg`
+        // 发送时刻时间戳：文件名用它(+ message_id 防同秒碰撞)，图片 alt 也用它命名（替代「图片N」）
+        const stamp = dayjs.unix(msg.date).format('YYYYMMDD-HHmmss')
+        const fileName = `${stamp}-${msg.message_id}.jpg`
         writeFileSync(join(imgDir, fileName), bytes)
         imgIndex = n
         const publicPath = `/images/weeks/${year}/${fileName}`
-        imageMap.set(n, publicPath)
+        imageMap.set(n, { path: publicPath, stamp })
         lines.push(`「${when}」 [图片${n}]${text ? ` ${text}` : ''}`)
         console.log(`🖼️  下载图片${n} -> ${publicPath}`)
       }
@@ -212,18 +219,18 @@ async function main(): Promise<void> {
 
   // 5. 后处理: [图片N] -> ![](...)；未被引用的图片追加到文末
   const referenced = new Set<number>()
-  body = body.replace(/\[图\s*片?\s*(\d+)\]/g, (_match, n: string) => {
+  body = body.replace(/\[图\s*(?:片\s*)?(\d+)\]/g, (_match, n: string) => {
     const idx = Number.parseInt(n, 10)
-    const path = imageMap.get(idx)
-    if (path) {
+    const img = imageMap.get(idx)
+    if (img) {
       referenced.add(idx)
-      return `![图片${idx}](${path})`
+      return `![${img.stamp}](${img.path})` // 图片名用发送时刻时间戳，不用「图片N」
     }
     return '' // 引用了不存在的图片，移除占位
   })
   const unreferenced = [...imageMap.entries()].filter(([i]) => !referenced.has(i))
   if (unreferenced.length > 0)
-    body += `\n\n${unreferenced.map(([i, path]) => `![图片${i}](${path})`).join('\n')}`
+    body += `\n\n${unreferenced.map(([, img]) => `![${img.stamp}](${img.path})`).join('\n')}`
 
   // 6. 写文件
   const content = `---
