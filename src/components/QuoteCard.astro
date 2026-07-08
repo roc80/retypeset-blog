@@ -118,8 +118,12 @@ const serializedQuotes = allQuotes.map(q => ({
         Client-side script: 页面加载即随机展示一条，刷新按钮再随机换一条。
         本站为静态生成（SSG），构建时烤进 HTML 的只是同一条兜底短句，
         所以"每次刷新换一条 / 不总从某句开始"必须在客户端按需执行。
+        data-astro-rerun: 站点启用了 <ClientRouter />（客户端路由），
+        内联脚本默认仅在首次硬加载执行，客户端导航进入首页时不会重新执行，
+        导致刷新按钮丢失 click 绑定。加上该属性后每次 view transition 都会重新执行，
+        重新获取 DOM、绑定事件，按钮在任意导航路径下均可点击。
       -->
-      <script define:vars={{ serializedQuotes, currentQuote: quote }}>
+      <script define:vars={{ serializedQuotes, currentQuote: quote }} data-astro-rerun>
         const refreshBtn = document.getElementById('quote-refresh')
         const quoteText = document.getElementById('quote-text')
         const quoteMeta = document.querySelector('.quote-meta')
