@@ -7,10 +7,9 @@ lang: zh
 
 Welcome to my personal website, which records my learning, development and life experiences.
 
-### 🤖 Stack
+### 🤖 Skills
 
-- **Backend**：Java / Spring Boot / MySQL / Redis
-- **Frontend**：Vue / Antd
+- **Backend Dev**: Java Junior Engineer
 
 ### 📂 My Content
 
@@ -20,17 +19,14 @@ Welcome to my personal website, which records my learning, development and life 
 
 ### 🚀 Activity
 
-- 🌐 2025.06.10 | Build My Blog Based on Astro
-- 🎯 2025.06.30 | [user center](https://user.rocli.cn/)
-- 🎯 2025.06.30 | [find friends](https://find-friends.rocli.cn/)
-- 💼 2025.07.21 | Get My First Backend Development Work
-
+- 💼 2026.05.19 | Joined FESCO Adecco
 ---
 
 ### TimeLine
 
-- 🌱 2022.04：Start exploring the CS world
-- 🎓 2023.06：Bachelor of GIS
-- 💼 2023.07：[10jqka.com.cn](https://www.10jqka.com.cn/) B2B Android Developer
-- 🧭 2025.03：Quit without a new job lined up and from android to backend
-- 📍&ensp;  2025.05：Hangzhou -> Xian
+- 🌱 2022.04: Start exploring the CS world
+- 🎓 2023.06: Bachelor of GIS
+- 💼 2023.07: [10jqka.com.cn](https://www.10jqka.com.cn/) | Android Developer
+- 🧭 2025.03: from android to backend
+- 📍 2025.05: Hangzhou -> Xian
+- 💼 2026.05: Joined FESCO Adecco
