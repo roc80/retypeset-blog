@@ -116,7 +116,6 @@ async function generateBody(transcript: string): Promise<string> {
     '把零碎的句子组织成连贯、可读的段落，平铺直叙，不要逐条罗列时间戳。',
     '图片占位 `[图片N]`改为 `image-图片发送时的时间戳`，例如：[image-1783524787] ',
     '正文里出现的英文冒号 ":" 一律替换为中文冒号 "："。',
-    '访问 https://rocli.cn/weeks/2025-week12/，读取内容，使你生成文章在排版、布局、文风上与之保持一致。',
     '严格检查并纠正中文错别字与英文拼写错误（包括我消息里的笔误），但不要改变原意。',
   ]
 
@@ -128,6 +127,36 @@ async function generateBody(transcript: string): Promise<string> {
     '',
   ].join('\n')
 
+  // 流式 + 重试：glm-4.6 是思考型模型、响应慢，非流式时服务端必须把整篇生成完才回 header，
+  // 容易撞 undici headersTimeout（默认 300s）整体失败、连带已下载的图片白费。改流式让 header 秒回
+  // 规避该错误；再对瞬时网络故障（超时 / 连接重置 / 5xx / 429）退避重试。
+  const MAX_RETRIES = 3
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const raw = await requestGLM(systemContent, transcript)
+      return raw
+        .trim()
+        .replace(/^```(?:markdown|md)?\s*/i, '')
+        .replace(/\s*```$/, '')
+        .trim()
+    }
+    catch (error) {
+      if (attempt === MAX_RETRIES || !isRetryable(error))
+        throw error
+      const backoffMs = 5000 * 2 ** (attempt - 1) // 5s, 10s
+      console.warn(`⚠️  GLM 第 ${attempt}/${MAX_RETRIES} 次失败，${backoffMs / 1000}s 后重试：${(error as Error).message}`)
+      await new Promise(resolve => setTimeout(resolve, backoffMs))
+    }
+  }
+  // 仅在 MAX_RETRIES 被调到 0 时理论可达，兜底
+  throw new Error('GLM 调用重试次数耗尽')
+}
+
+/**
+ * 单次流式调用 GLM，边读边累积 delta.content 返回。
+ * 思考型模型会先吐 reasoning_content（思考过程），这里只收集正式正文 content，思考过程丢弃。
+ */
+async function requestGLM(systemContent: string, transcript: string): Promise<string> {
   const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
     method: 'POST',
     headers: {
@@ -137,21 +166,68 @@ async function generateBody(transcript: string): Promise<string> {
     body: JSON.stringify({
       model: GLM_MODEL,
       temperature: 0.3,
+      stream: true,
       messages: [
         { role: 'system', content: systemContent },
         { role: 'user', content: transcript },
       ],
     }),
   })
-  if (!res.ok)
-    throw new Error(`GLM 调用失败: ${res.status} ${await res.text()}`)
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] }
-  const content = data.choices?.[0]?.message?.content ?? ''
+  if (!res.ok) {
+    // 错误响应是普通 JSON、不是 SSE；记下 status 让上层按 4xx/5xx 决定是否重试
+    const err = new Error(`GLM 调用失败: ${res.status} ${await res.text()}`) as Error & { status?: number }
+    err.status = res.status
+    throw err
+  }
+  if (!res.body)
+    throw new Error('GLM 返回空响应体')
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let content = ''
+  let chunk = await reader.read()
+  while (!chunk.done) {
+    buffer += decoder.decode(chunk.value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? '' // 末行可能被分块截断，留到下次拼接
+    for (const line of lines) {
+      const data = line.trim()
+      if (!data.startsWith('data:'))
+        continue
+      const payload = data.slice(5).trim()
+      if (!payload || payload === '[DONE]')
+        continue
+      let parsed: { choices?: { delta?: { content?: string } }[] }
+      try {
+        parsed = JSON.parse(payload)
+      }
+      catch {
+        continue // keep-alive / 非 JSON 注释行，忽略
+      }
+      const delta = parsed.choices?.[0]?.delta?.content
+      if (delta)
+        content += delta
+    }
+    chunk = await reader.read()
+  }
   return content
-    .trim()
-    .replace(/^```(?:markdown|md)?\s*/i, '')
-    .replace(/\s*```$/, '')
-    .trim()
+}
+
+/** 判断错误是否值得重试：网络层失败（fetch failed / 超时 / 连接重置）或 HTTP 5xx / 429。 */
+function isRetryable(error: unknown): boolean {
+  const status = (error as { status?: number })?.status
+  if (typeof status === 'number')
+    return status === 429 || status >= 500
+  if (error instanceof Error) {
+    const code
+      = (error as { cause?: { code?: string } }).cause?.code
+        ?? (error as { code?: string }).code
+    if (typeof code === 'string' && /TIMEOUT|RESET|REFUSED|UNREACHABLE|EAI_AGAIN|EPIPE/.test(code))
+      return true
+    return error.message.includes('fetch failed')
+  }
+  return false
 }
 
 /**
