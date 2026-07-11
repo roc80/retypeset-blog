@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write   # 允许 GITHUB_TOKEN 把生成的源文件推回 master
+  actions: write    # 允许 GITHUB_TOKEN 触发 deploy.yml（workflow_dispatch）
 
 jobs:
   generate:
@@ -58,19 +59,19 @@ jobs:
       # 脚本按"当前 ISO 周"过滤，本周内任意时刻生成都能拿到本周完整消息（幂等）；
       # 跨周消息自动被过滤排除，不会混入新一周的周记。
 
-      # 用默认 GITHUB_TOKEN 推送的 commit 不会触发其他 workflow（GitHub 防循环），
-      # 所以 deploy.yml 不会被本次 push 唤醒 —— 这里自己执行 build + rsync 完成上线。
-      - name: 构建站点
+      # 用默认 GITHUB_TOKEN 推送的 commit 不会触发 on: push 工作流（GitHub 防循环），
+      # 所以这里显式 dispatch deploy.yml 来完成构建 + rsync 部署。
+      # workflow_dispatch 是允许被 GITHUB_TOKEN 触发的例外事件（需 actions: write 权限）。
+      - name: 触发 deploy.yml 部署
         if: steps.commit.outputs.committed == 'true'
-        run: pnpm build
-
-      - name: Deploy via Rsync
-        if: steps.commit.outputs.committed == 'true'
-        uses: burnett01/rsync-deployments@6.0.0
+        uses: actions/github-script@v7
         with:
-          switches: -avzr --delete --exclude='.user.ini'
-          path: dist/
-          remote_path: /www/wwwroot/rocli.cn/
-          remote_host: ${{ secrets.SSH_HOST }}
-          remote_user: ${{ secrets.SSH_USERNAME }}
-          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deploy.yml',
+              ref: 'master',
+            })
+            core.info('已触发 deploy.yml（Deploy Blog to Server），构建与部署由其接管')

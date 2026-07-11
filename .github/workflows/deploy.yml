@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:   # 供 auto-week.yml 生成周记后主动触发部署（GITHUB_TOKEN 的 push 不触发 push 事件，需显式 dispatch）
 
 jobs:
   build-and-deploy:
