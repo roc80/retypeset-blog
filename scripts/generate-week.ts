@@ -13,7 +13,7 @@
  *   WORKER_URL / WORKER_SECRET  — 读取并清空 Worker /inbox
  *   TG_BOT_TOKEN                — 直连 Telegram getFile 下载图片（GH Actions runner 在境外，可直连）
  *   GLM_API_KEY                 — 智谱 BigModel (OpenAI 兼容) key
- *   GLM_MODEL (可选)            — 默认 glm-4.6；可设为 glm-4-flash 等
+ *   GLM_MODEL (可选)            — 默认 glm-5.1；可设为 glm-4-flash 等
  *   TZ                          — 由 workflow 设为 Asia/Shanghai，让 dayjs 取北京时间
  *
  * 本周 inbox 为空时不写文件、不提交（避免空周记）。
@@ -45,7 +45,7 @@ const WORKER_URL = requireEnv('WORKER_URL')
 const WORKER_SECRET = requireEnv('WORKER_SECRET')
 const TG_BOT_TOKEN = requireEnv('TG_BOT_TOKEN')
 const GLM_API_KEY = requireEnv('GLM_API_KEY')
-const GLM_MODEL = process.env.GLM_MODEL || 'glm-4.6'
+const GLM_MODEL = process.env.GLM_MODEL || 'glm-5.1'
 
 interface TgPhotoSize {
   file_id: string
@@ -107,14 +107,17 @@ async function generateBody(transcript: string): Promise<string> {
   // 输入格式说明
   const inputFormat
     = '你帮我写个人周记。我会把你本周在 Telegram 里记下的碎片逐条发给你，'
-      + '每条格式为：「MM-DD HH:mm」 内容（文字 或 [图片N] 占位）。'
+      + '每条格式为：「MM-DD HH:mm」 内容；内容可能是纯文字、[图片N] 占位，或 [图片N] 后跟一句该图片的文字说明。'
+      + '我发的文字和图片是交叉出现的，一段文字和它附近的图片通常相互关联。'
 
   // 规则列表（数组顺序即正文里的编号顺序）
   const rules = [
     '严格记流水账：忠于我给的内容，按时间顺序写成通顺的日记，不要添加修饰、感悟、总结或升华，不要"润色"，不要编造我没提到的事。',
-    '行首的「MM-DD HH:mm」只用于排序——正文里绝对不要出现具体几点几分（如 00:36、11:53），也不要在句首重复消息发送时间。按照我给你的Telegram消息顺序排版图片和文字，不要硬凑其他小标题。',
-    '把零碎的句子组织成连贯、可读的段落，平铺直叙，不要逐条罗列时间戳。',
-    '图片占位 `[图片N]`改为 `image-图片发送时的时间戳`，例如：[image-1783524787] ',
+    '行首的「MM-DD HH:mm」只用于排序——正文里绝对不要出现具体几点几分（如 00:36、11:53），也不要在句首重复消息发送时间。',
+    '图片占位 `[图片N]` 必须逐字原样保留：方括号、"图片"、序号 N 都不变，不要改名、删除、合并，更不要改写成 `[image-...]` 或任何别的形式；序号 N 之外的图片信息（如时间戳）不要写进正文。',
+    '严格按消息顺序交叉排版文字与图片：每段文字和它前后相邻的 `[图片N]` 要保持在消息流里的相对位置（图片与紧邻的文字相互关联），绝不能把文字全部堆到前面、把 `[图片N]` 全部堆到后面或挪到文末。',
+    '把零碎句子组织成连贯、可读的段落，平铺直叙，不要逐条罗列时间戳；合并段落时 `[图片N]` 必须留在对应文字原本的位置，不能因排版而被挪走。',
+    '不要自行添加任何小标题。',
     '正文里出现的英文冒号 ":" 一律替换为中文冒号 "："。',
     '严格检查并纠正中文错别字与英文拼写错误（包括我消息里的笔误），但不要改变原意。',
   ]
@@ -127,7 +130,7 @@ async function generateBody(transcript: string): Promise<string> {
     '',
   ].join('\n')
 
-  // 流式 + 重试：glm-4.6 是思考型模型、响应慢，非流式时服务端必须把整篇生成完才回 header，
+  // 流式 + 重试：glm-5.1 是思考型模型、响应慢，非流式时服务端必须把整篇生成完才回 header，
   // 容易撞 undici headersTimeout（默认 300s）整体失败、连带已下载的图片白费。改流式让 header 秒回
   // 规避该错误；再对瞬时网络故障（超时 / 连接重置 / 5xx / 429）退避重试。
   const MAX_RETRIES = 3
