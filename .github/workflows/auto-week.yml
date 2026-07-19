@@ -35,7 +35,7 @@ jobs:
           WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
-          GLM_MODEL: ${{ secrets.GLM_MODEL }}   # 可选，留空则默认 glm-4.6
+          GLM_MODEL: ${{ secrets.GLM_MODEL }}   # 可选，留空则默认 glm-5.1
         run: pnpm tsx scripts/generate-week.ts
 
       - name: 推送生成的源文件到 master

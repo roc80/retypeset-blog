@@ -22,7 +22,7 @@
 然后注册 webhook（命令见 worker README）。
 
 ### 3. 智谱 GLM
-到 [open.bigmodel.cn](https://open.bigmodel.cn) 申请 `GLM_API_KEY`。默认模型 `glm-4.6`，可用仓库 Secret `GLM_MODEL` 覆盖（如 `glm-4-flash`）。
+到 [open.bigmodel.cn](https://open.bigmodel.cn) 申请 `GLM_API_KEY`。默认模型 `glm-5.1`，可用仓库 Secret `GLM_MODEL` 覆盖（如 `glm-4-flash`）。
 
 ### 4. GitHub 仓库 Secrets
 在仓库 **Settings → Secrets and variables → Actions** 添加：
@@ -33,7 +33,7 @@
 | `WORKER_SECRET` | /inbox 鉴权串 |
 | `TG_BOT_TOKEN` | Bot token |
 | `GLM_API_KEY` | 智谱 key |
-| `GLM_MODEL` | （可选）如 `glm-4.6` / `glm-4-flash`，留空用默认 |
+| `GLM_MODEL` | （可选）如 `glm-5.1` / `glm-4-flash`，留空用默认 |
 
 > `SSH_HOST` / `SSH_USERNAME` / `SSH_PRIVATE_KEY` 已存在（部署用），无需新增。
 

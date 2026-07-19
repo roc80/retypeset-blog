@@ -20,8 +20,9 @@
  * 周记名按真实周次（ISO week）：如 2026-06-28 是第 26 周 → 2026-Week26。
  */
 
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import process from 'node:process'
 import dayjs from 'dayjs'
 import isoWeek from 'dayjs/plugin/isoWeek'
@@ -113,11 +114,13 @@ async function generateBody(transcript: string): Promise<string> {
   // 规则列表（数组顺序即正文里的编号顺序）
   const rules = [
     '严格记流水账：忠于我给的内容，按时间顺序写成通顺的日记，不要添加修饰、感悟、总结或升华，不要"润色"，不要编造我没提到的事。',
-    '行首的「MM-DD HH:mm」只用于排序——正文里绝对不要出现具体几点几分（如 00:36、11:53），也不要在句首重复消息发送时间。',
+    '行首的「MM-DD HH:mm」只用于排序和判断是否换天——正文里绝对不要出现具体几点几分（如 00:36、11:53），也不要写出日期或重复消息发送时间。',
     '图片占位 `[图片N]` 必须逐字原样保留：方括号、"图片"、序号 N 都不变，不要改名、删除、合并，更不要改写成 `[image-...]` 或任何别的形式；序号 N 之外的图片信息（如时间戳）不要写进正文。',
     '严格按消息顺序交叉排版文字与图片：每段文字和它前后相邻的 `[图片N]` 要保持在消息流里的相对位置（图片与紧邻的文字相互关联），绝不能把文字全部堆到前面、把 `[图片N]` 全部堆到后面或挪到文末。',
     '把零碎句子组织成连贯、可读的段落，平铺直叙，不要逐条罗列时间戳；合并段落时 `[图片N]` 必须留在对应文字原本的位置，不能因排版而被挪走。',
     '不要自行添加任何小标题。',
+    '不同日期（按行首 MM-DD 判断）的内容之间，用单独一行的水平分割线 `---` 隔开；同一天的内容连续写、不要加分割线。`---` 必须独占一行、前后各留一个空行，正文最开头和最末尾都不要放 `---`。',
+    '只输出纯净的 Markdown 正文：不要使用代码块（```）、行内代码、HTML 标签或 HTML 实体。',
     '正文里出现的英文冒号 ":" 一律替换为中文冒号 "："。',
     '严格检查并纠正中文错别字与英文拼写错误（包括我消息里的笔误），但不要改变原意。',
   ]
@@ -234,6 +237,74 @@ function isRetryable(error: unknown): boolean {
 }
 
 /**
+ * 确定性清洗 GLM 生成的正文，使其通过 MarkdownLint 校验：
+ * 1. 规范水平分割线：所有 `---`/`***`/`___` 归一为 `---`，并强制前后各空一行
+ *    （否则「文字\n---」会被解析成 Setext 二级标题，分割线被吃掉、文字变标题）；
+ * 2. 去除每行行尾空白（MD009）；
+ * 3. 合并连续空行为单个（MD012）；
+ * 4. 去掉正文首尾多余空行与首尾多余的 `---`，保证以单个换行结尾（MD047）。
+ * 只作用于正文 body，不含 frontmatter。
+ */
+function cleanMarkdown(body: string): string {
+  const isHr = /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/
+  const lines = body.replace(/\r\n/g, '\n').split('\n')
+
+  // 行尾去空白；水平线归一为 ---
+  const normalized = lines.map(line => (isHr.test(line) ? '---' : line.replace(/[ \t]+$/, '')))
+
+  // 确保每条 --- 前后都有空行，同时合并连续空行
+  const spaced: string[] = []
+  for (const line of normalized) {
+    if (line === '---') {
+      if (spaced[spaced.length - 1] !== '')
+        spaced.push('')
+      spaced.push('---')
+      spaced.push('')
+    }
+    else {
+      if (line === '' && spaced[spaced.length - 1] === '')
+        continue
+      spaced.push(line)
+    }
+  }
+
+  const trimBlanks = (arr: string[]): string[] => {
+    while (arr.length && arr[0] === '')
+      arr.shift()
+    while (arr.length && arr[arr.length - 1] === '')
+      arr.pop()
+    return arr
+  }
+
+  let cleaned = trimBlanks(spaced)
+  // 分割线只用于天与天之间，首尾不应出现单独的 ---
+  if (cleaned[0] === '---')
+    cleaned = trimBlanks(cleaned.slice(1))
+  if (cleaned[cleaned.length - 1] === '---')
+    cleaned = trimBlanks(cleaned.slice(0, -1))
+
+  return `${cleaned.join('\n')}\n`
+}
+
+/**
+ * 对生成的 md 文件先跑 markdownlint-cli2 --fix 自动修复可修复的规则，再校验一次。
+ * node_modules/.bin 注入 PATH 以兼容本地与 CI；返回是否通过及残留输出。
+ */
+function markdownlintFile(filePath: string): { ok: boolean, output: string } {
+  const binDir = join(process.cwd(), 'node_modules', '.bin')
+  const env = { ...process.env, PATH: `${binDir}${delimiter}${process.env.PATH ?? ''}` }
+  const run = (args: string[]) =>
+    spawnSync('markdownlint-cli2', args, { env, shell: true, encoding: 'utf8' })
+
+  // 1. 自动修复（行尾空白、连续空行、分割线风格、文件结尾换行等）
+  run(['--fix', filePath])
+  // 2. 校验，确认是否仍有 markdownlint 无法自动修复的残留问题
+  const verify = run([filePath])
+  const output = `${verify.stdout || ''}${verify.stderr || ''}`.trim()
+  return { ok: verify.status === 0, output }
+}
+
+/**
  * 计算目标文件名与路径：周记名用真实周次（ISO week），如 2026-06-28 → 2026-Week26。
  *  isoWeekYear 与 isoWeek 配套使用，跨年边界（12 月底 / 1 月初）也正确。
  */
@@ -326,7 +397,10 @@ async function main(): Promise<void> {
   if (unreferenced.length > 0)
     body += `\n\n${unreferenced.map(([, img]) => `![${img.stamp}](${img.path})`).join('\n')}`
 
-  // 6. 写文件
+  // 6. 清洗正文（分割线前后空行 / 去行尾空白 / 合并空行）使其通过 MarkdownLint
+  body = cleanMarkdown(body)
+
+  // 7. 写文件：frontmatter 与正文之间空一行，正文由 cleanMarkdown 保证以单个换行结尾
   const content = `---
 title: ${title}
 pubDate: ${dayjs().format('YYYY-MM-DD HH:mm:ss')}
@@ -339,11 +413,16 @@ pin: 0
 toc: ${themeConfig.global.toc}
 lang: ''
 abbrlink: '${abbrlink}'
----
-
-${body}
-`
+---\n\n${body}`
   writeFileSync(fullPath, content)
+
+  // 8. MarkdownLint 自动修复 + 校验（通过 .markdownlint.json 规则；MD013 行长度已关，适配中文长段）
+  const { ok, output } = markdownlintFile(fullPath)
+  if (ok)
+    console.log(`✅ MarkdownLint 校验通过: ${fullPath}`)
+  else
+    console.warn(`⚠️  MarkdownLint 仍有无法自动修复的问题，请人工检查 ${fullPath}:\n${output}`)
+
   console.log(`✅ 周记已生成: ${fullPath} (abbrlink=${abbrlink})`)
 
   // 注：inbox 不再清空（不再调用 DELETE /inbox）。消息靠 Worker KV 写入时的 14 天 TTL 自动过期，
