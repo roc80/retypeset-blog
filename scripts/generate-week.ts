@@ -112,7 +112,7 @@ async function generateBody(transcript: string): Promise<string> {
   // 规则列表（数组顺序即正文里的编号顺序）
   const rules = [
     '严格记流水账：忠于我给的内容，按时间顺序写成通顺的日记，不要添加修饰、感悟、总结或升华，不要"润色"，不要编造我没提到的事。',
-    '行首的「MM-DD HH:mm」只用于排序和判断是否换天——正文里绝对不要出现具体几点几分（如 00:36、11:53），也不要写出日期或重复消息发送时间。[...],',
+    '行首的「MM-DD HH:mm」只用于排序和判断是否换天——正文里绝对不要出现具体几点几分（如 00:36、11:53），也不要写出日期或重复消息发送时间。[...]',
     '图片占位 `[图片N]` 必须逐字原样保留：方括号、"图片"、序号 N 都不变，不要改名、删除、合并，更不要改写成 `[image-...]` 或任何别的形式；序�[...]',
     '严格按消息顺序交叉排版文字与图片：每段文字和它前后相邻的 `[图片N]` 要保持在消息流里的相对位置（图片与紧邻的文字相互关联），绝不能[...]',
     '把零碎句子组织成连贯、可读的段落，平铺直叙，不要逐条罗列时间戳；合并段落时 `[图片N]` 必须留在对应文字原本的位置，不能因排版而被挪[...]',
@@ -285,6 +285,24 @@ function cleanMarkdown(body: string): string {
 }
 
 /**
+ * 对生成的 md 文件先跑 markdownlint-cli2 --fix 自动修复可修复的规则，再校验一次。
+ * node_modules/.bin 注入 PATH 以兼容本地与 CI；返回是否通过及残留输出。
+ */
+function markdownlintFile(filePath: string): { ok: boolean, output: string } {
+  const binDir = join(process.cwd(), 'node_modules', '.bin')
+  const env = { ...process.env, PATH: `${binDir}${delimiter}${process.env.PATH ?? ''}` }
+  const run = (args: string[]) =>
+    spawnSync('markdownlint-cli2', args, { env, shell: true, encoding: 'utf8' })
+
+  // 1. 自动修复（行尾空白、连续空行、分割线风格、文件结尾换行等）
+  run(['--fix', filePath])
+  // 2. 校验，确认是否仍有 markdownlint 无法自动修复的残留问题
+  const verify = run([filePath])
+  const output = `${verify.stdout || ''}${verify.stderr || ''}`.trim()
+  return { ok: verify.status === 0, output }
+}
+
+/**
  * 计算目标文件名与路径：周记名用真实周次（ISO week），如 2026-06-28 → 2026-Week26。
  *  isoWeekYear 与 isoWeek 配套使用，跨年边界（12 月底 / 1 月初）也正确。
  */
@@ -402,7 +420,7 @@ async function main(): Promise<void> {
 
   // 注：inbox 不再清空（不再调用 DELETE /inbox）。消息靠 Worker KV 写入时的 14 天 TTL 自动过期，
   // 本周内任意时刻重跑都会按 ISO 周过滤出本周完整消息（同周同名文件覆盖，幂等）；失败重跑也安全，
-  // 因为消息从不主动删除。跨周后旧消息在 14 天内会被 TTL 清掉，或被本周过滤排除、不混入。
+  // 因为消息从不主动删除。跨周后旧消息在 14 天 内会被 TTL 清掉，或被本周过滤排除、不混入。
 }
 
 main().catch((error) => {
