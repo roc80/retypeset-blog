@@ -74,14 +74,12 @@ async function fetchInbox(): Promise<TgMessage[]> {
 }
 
 /**
- * 判断给定 Unix 时间戳(秒)是否属于"当前 ISO 周"。
+ * 判断给定 Unix 时间戳(秒)是否属于目标 ISO 周（可通过 refDayjs 传入要对比的那一周）。
  * 用 isoWeekYear + isoWeek 配套判定，跨年边界（12 月底 / 1 月初）也正确。
- * inbox 不再清空，靠此函数按周过滤，保证本周任意时刻生成都拿到本周完整消息（幂等）。
  */
-function isCurrentIsoWeek(unixTs: number): boolean {
+function isIsoWeekOf(unixTs: number, refDayjs: dayjs.Dayjs): boolean {
   const t = dayjs.unix(unixTs)
-  const now = dayjs()
-  return t.isoWeekYear() === now.isoWeekYear() && t.isoWeek() === now.isoWeek()
+  return t.isoWeekYear() === refDayjs.isoWeekYear() && t.isoWeek() === refDayjs.isoWeek()
 }
 
 /** 通过 Telegram getFile 下载图片，返回字节 */
@@ -114,12 +112,12 @@ async function generateBody(transcript: string): Promise<string> {
   // 规则列表（数组顺序即正文里的编号顺序）
   const rules = [
     '严格记流水账：忠于我给的内容，按时间顺序写成通顺的日记，不要添加修饰、感悟、总结或升华，不要"润色"，不要编造我没提到的事。',
-    '行首的「MM-DD HH:mm」只用于排序和判断是否换天——正文里绝对不要出现具体几点几分（如 00:36、11:53），也不要写出日期或重复消息发送时间。',
-    '图片占位 `[图片N]` 必须逐字原样保留：方括号、"图片"、序号 N 都不变，不要改名、删除、合并，更不要改写成 `[image-...]` 或任何别的形式；序号 N 之外的图片信息（如时间戳）不要写进正文。',
-    '严格按消息顺序交叉排版文字与图片：每段文字和它前后相邻的 `[图片N]` 要保持在消息流里的相对位置（图片与紧邻的文字相互关联），绝不能把文字全部堆到前面、把 `[图片N]` 全部堆到后面或挪到文末。',
-    '把零碎句子组织成连贯、可读的段落，平铺直叙，不要逐条罗列时间戳；合并段落时 `[图片N]` 必须留在对应文字原本的位置，不能因排版而被挪走。',
+    '行首的「MM-DD HH:mm」只用于排序和判断是否换天——正文里绝对不要出现具体几点几分（如 00:36、11:53），也不要写出日期或重复消息发送时间。[...],',
+    '图片占位 `[图片N]` 必须逐字原样保留：方括号、"图片"、序号 N 都不变，不要改名、删除、合并，更不要改写成 `[image-...]` 或任何别的形式；序�[...]',
+    '严格按消息顺序交叉排版文字与图片：每段文字和它前后相邻的 `[图片N]` 要保持在消息流里的相对位置（图片与紧邻的文字相互关联），绝不能[...]',
+    '把零碎句子组织成连贯、可读的段落，平铺直叙，不要逐条罗列时间戳；合并段落时 `[图片N]` 必须留在对应文字原本的位置，不能因排版而被挪[...]',
     '不要自行添加任何小标题。',
-    '不同日期（按行首 MM-DD 判断）的内容之间，用单独一行的水平分割线 `---` 隔开；同一天的内容连续写、不要加分割线。`---` 必须独占一行、前后各留一个空行，正文最开头和最末尾都不要放 `---`。',
+    '不同日期（按行首 MM-DD 判断）的内容之间，用单独一行的水平分割线 `---` 隔开；同一天的内容连续写、不要加分割线。`---` 必须独占一行、前��[...]',
     '只输出纯净的 Markdown 正文：不要使用代码块（```）、行内代码、HTML 标签或 HTML 实体。',
     '正文里出现的英文冒号 ":" 一律替换为中文冒号 "："。',
     '严格检查并纠正中文错别字与英文拼写错误（包括我消息里的笔误），但不要改变原意。',
@@ -287,30 +285,12 @@ function cleanMarkdown(body: string): string {
 }
 
 /**
- * 对生成的 md 文件先跑 markdownlint-cli2 --fix 自动修复可修复的规则，再校验一次。
- * node_modules/.bin 注入 PATH 以兼容本地与 CI；返回是否通过及残留输出。
- */
-function markdownlintFile(filePath: string): { ok: boolean, output: string } {
-  const binDir = join(process.cwd(), 'node_modules', '.bin')
-  const env = { ...process.env, PATH: `${binDir}${delimiter}${process.env.PATH ?? ''}` }
-  const run = (args: string[]) =>
-    spawnSync('markdownlint-cli2', args, { env, shell: true, encoding: 'utf8' })
-
-  // 1. 自动修复（行尾空白、连续空行、分割线风格、文件结尾换行等）
-  run(['--fix', filePath])
-  // 2. 校验，确认是否仍有 markdownlint 无法自动修复的残留问题
-  const verify = run([filePath])
-  const output = `${verify.stdout || ''}${verify.stderr || ''}`.trim()
-  return { ok: verify.status === 0, output }
-}
-
-/**
  * 计算目标文件名与路径：周记名用真实周次（ISO week），如 2026-06-28 → 2026-Week26。
  *  isoWeekYear 与 isoWeek 配套使用，跨年边界（12 月底 / 1 月初）也正确。
  */
-function resolveTarget(): { fullPath: string, title: string, abbrlink: string } {
-  const isoYear = dayjs().isoWeekYear()
-  const isoWeekNum = dayjs().isoWeek()
+function resolveTarget(refDayjs: dayjs.Dayjs): { fullPath: string, title: string, abbrlink: string } {
+  const isoYear = refDayjs.isoWeekYear()
+  const isoWeekNum = refDayjs.isoWeek()
   const yearStr = String(isoYear)
   const weeksDir = join(WEEKS_DIR, yearStr)
   if (!existsSync(weeksDir))
@@ -322,18 +302,25 @@ function resolveTarget(): { fullPath: string, title: string, abbrlink: string } 
 }
 
 async function main(): Promise<void> {
-  // 1. 读取消息并按"当前 ISO 周"过滤（inbox 不清空，跨周消息自动排除，保证本周幂等）
+  // 决定使用哪一周：仅当当前是本周的周五（含）到周日时，才取本周；否则取上周（周一—周日）
+  const now = dayjs()
+  const dow = now.day() // Sunday=0, Monday=1, ..., Saturday=6
+  const isoDay = dow === 0 ? 7 : dow // ISO weekday: Monday=1 ... Sunday=7
+  const useCurrentWeek = isoDay >= 5 // Fri(5), Sat(6), Sun(7)
+  const targetRef = useCurrentWeek ? now : now.subtract(7, 'day')
+
+  // 1. 读取消息并按目标 ISO 周 过滤（inbox 不清空，跨周消息自动排除，保证幂等）
   const all = await fetchInbox()
-  const messages = all.filter(msg => isCurrentIsoWeek(msg.date))
+  const messages = all.filter(msg => isIsoWeekOf(msg.date, targetRef))
   if (messages.length === 0) {
-    console.log(`ℹ️  本周 inbox 为空（历史消息 ${all.length} 条），跳过生成。`)
+    console.log(`ℹ️  目标周 (${useCurrentWeek ? '本周' : '上周'}) inbox 为空（历史消息 ${all.length} 条），跳过生成。`)
     return
   }
-  console.log(`📩 读取到 ${all.length} 条消息，本周占 ${messages.length} 条`)
+  console.log(`📩读取到 ${all.length} 条消息，目标周占 ${messages.length} 条 (useCurrentWeek=${useCurrentWeek})`)
 
   // 2. 算目标文件（周记名 = 真实周次）；图片年份与之保持一致
-  const year = String(dayjs().isoWeekYear())
-  const { fullPath, title, abbrlink } = resolveTarget()
+  const year = String(targetRef.isoWeekYear())
+  const { fullPath, title, abbrlink } = resolveTarget(targetRef)
   const imgDir = join(IMAGES_DIR, year)
   if (!existsSync(imgDir))
     mkdirSync(imgDir, { recursive: true })
@@ -401,19 +388,7 @@ async function main(): Promise<void> {
   body = cleanMarkdown(body)
 
   // 7. 写文件：frontmatter 与正文之间空一行，正文由 cleanMarkdown 保证以单个换行结尾
-  const content = `---
-title: ${title}
-pubDate: ${dayjs().format('YYYY-MM-DD HH:mm:ss')}
-description: ''
-updated: ''
-tags:
-  - 周记
-draft: false
-pin: 0
-toc: ${themeConfig.global.toc}
-lang: ''
-abbrlink: '${abbrlink}'
----\n\n${body}`
+  const content = `---\ntitle: ${title}\npubDate: ${dayjs().format('YYYY-MM-DD HH:mm:ss')}\ndescription: ''\nupdated: ''\ntags:\n  - 周记\ndraft: false\npin: 0\ntoc: ${themeConfig.global.toc}\nlang: ''\nabbrlink: '${abbrlink}'\n---\n\n${body}`
   writeFileSync(fullPath, content)
 
   // 8. MarkdownLint 自动修复 + 校验（通过 .markdownlint.json 规则；MD013 行长度已关，适配中文长段）
