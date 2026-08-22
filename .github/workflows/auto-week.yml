@@ -25,16 +25,23 @@ jobs:
       - name: Install pnpm globally
         run: npm install -g pnpm
 
+      - name: Install Claude Code CLI
+        # GLM Coding Plan 只认官方指定工具；用 claude CLI 走 /api/anthropic 端点消耗套餐额度
+        run: npm install -g @anthropic-ai/claude-code
+
       - name: Install dependencies
         run: pnpm install
 
-      - name: 生成周记（拉消息 / 按本周过滤 / 下图 / 调 GLM / 写文件）
+      - name: 生成周记（拉消息 / 按本周过滤 / 下图 / 调 Claude Code→GLM 套餐 / 写文件）
         env:
           TZ: Asia/Shanghai            # 让脚本里 dayjs 取北京时间
           WORKER_URL: ${{ secrets.WORKER_URL }}
           WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
+          # 智谱 Coding Plan：Anthropic 协议端点 + 套餐 Key（「个人编程套餐 > 套餐概览」新建的那种）。
+          # 由脚本内的 claude CLI 读取这组变量；别再用标准 API 的 GLM_API_KEY（按量计费通道，已 429）
+          ANTHROPIC_BASE_URL: https://open.bigmodel.cn/api/anthropic
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.GLM_CODING_KEY }}
           GLM_MODEL: ${{ secrets.GLM_MODEL }}   # 可选，留空则默认 glm-5.1
         run: pnpm tsx scripts/generate-week.ts
 

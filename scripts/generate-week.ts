@@ -1,7 +1,8 @@
 /**
  * Generate a weekly journal (周记) from this week's Telegram messages.
  *
- * 流程: 读 Cloudflare Worker /inbox → 按"当前 ISO 周"过滤 → 直连 Telegram 下载图片 → 调智谱 GLM 生成正文
+ * 流程: 读 Cloudflare Worker /inbox → 按"当前 ISO 周"过滤 → 直连 Telegram 下载图片 → 经 Claude Code CLI
+ *      调智谱 GLM（Anthropic 协议端点 /api/anthropic，走 Coding Plan 套餐额度）生成正文
  *      → 写 src/content/posts/weeks/{年}/{年}-Week{N}.md
  *
  * 幂等: inbox 不再清空（靠 Worker KV 写入时设的 14 天 TTL 自动过期）。本周内任意时刻生成，
@@ -12,8 +13,9 @@
  * 环境变量:
  *   WORKER_URL / WORKER_SECRET  — 读取并清空 Worker /inbox
  *   TG_BOT_TOKEN                — 直连 Telegram getFile 下载图片（GH Actions runner 在境外，可直连）
- *   GLM_API_KEY                 — 智谱 BigModel (OpenAI 兼容) key
- *   GLM_MODEL (可选)            — 默认 glm-5.1；可设为 glm-4-flash 等
+ *   ANTHROPIC_BASE_URL          — https://open.bigmodel.cn/api/anthropic（智谱 Anthropic 协议端点）
+ *   ANTHROPIC_AUTH_TOKEN        — 智谱 Coding Plan 套餐 Key，由 claude CLI 读取（走套餐额度，不按量计费）
+ *   GLM_MODEL (可选)            — 传给 claude CLI 的 --model；默认 glm-5.1
  *   TZ                          — 由 workflow 设为 Asia/Shanghai，让 dayjs 取北京时间
  *
  * 本周 inbox 为空时不写文件、不提交（避免空周记）。
@@ -45,7 +47,8 @@ function requireEnv(key: string): string {
 const WORKER_URL = requireEnv('WORKER_URL')
 const WORKER_SECRET = requireEnv('WORKER_SECRET')
 const TG_BOT_TOKEN = requireEnv('TG_BOT_TOKEN')
-const GLM_API_KEY = requireEnv('GLM_API_KEY')
+// claude CLI 自己读 ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN 连智谱；这里只做 fail-fast，缺 Key 直接报错
+requireEnv('ANTHROPIC_AUTH_TOKEN')
 const GLM_MODEL = process.env.GLM_MODEL || 'glm-5.1'
 
 interface TgPhotoSize {
@@ -99,7 +102,7 @@ async function downloadTgPhoto(fileId: string): Promise<Uint8Array> {
   return new Uint8Array(await fileRes.arrayBuffer())
 }
 
-/** 调智谱 GLM (OpenAI 兼容接口) 生成周记正文（流水账风格：不修饰、不升华，严格按消息行文） */
+/** 经 Claude Code CLI 调智谱 GLM 生成周记正文（流水账风格：不修饰、不升华，严格按消息行文） */
 async function generateBody(transcript: string): Promise<string> {
   // —— Prompt 构建（结构化：规则用数组维护，追加新要求只需往 rules 里加一条，编号自动续上）——
 
@@ -131,13 +134,12 @@ async function generateBody(transcript: string): Promise<string> {
     '',
   ].join('\n')
 
-  // 流式 + 重试：glm-5.1 是思考型模型、响应慢，非流式时服务端必须把整篇生成完才回 header，
-  // 容易撞 undici headersTimeout（默认 300s）整体失败、连带已下载的图片白费。改流式让 header 秒回
-  // 规避该错误；再对瞬时网络故障（超时 / 连接重置 / 5xx / 429）退避重试。
+  // 重试：套餐限流（429）/ 网络抖动等瞬时故障退避重跑；思考型模型响应慢，单次 CLI 调用放宽到 10 分钟。
   const MAX_RETRIES = 3
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const raw = await requestGLM(systemContent, transcript)
+      // 指令与消息合并后经 stdin 传给 claude -p（避开多行参数过 shell 的转义问题）
+      const raw = requestClaude(`${systemContent}\n本周消息记录：\n\n${transcript}`)
       return raw
         .trim()
         .replace(/^```(?:markdown|md)?\s*/i, '')
@@ -157,65 +159,33 @@ async function generateBody(transcript: string): Promise<string> {
 }
 
 /**
- * 单次流式调用 GLM，边读边累积 delta.content 返回。
- * 思考型模型会先吐 reasoning_content（思考过程），这里只收集正式正文 content，思考过程丢弃。
+ * 单次调用 Claude Code CLI（无头模式 claude -p）生成文本。
+ * 为什么绕道 CLI 而不 fetch 直连：标准 API /api/paas/v4/chat/completions 是按量计费通道（已 429）；
+ * Coding Plan 套餐只认 Anthropic 协议端点 /api/anthropic + 官方指定工具，Claude Code 正是指定工具，
+ * 走它才消耗套餐额度。端点与密钥经 ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN 传给子进程（默认继承本进程环境）。
  */
-async function requestGLM(systemContent: string, transcript: string): Promise<string> {
-  const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${GLM_API_KEY}`,
-      'Content-Type': 'application/json',
+function requestClaude(prompt: string): string {
+  const run = spawnSync(
+    'claude',
+    ['-p', '--model', GLM_MODEL, '--output-format', 'text'],
+    {
+      input: prompt, // 长文本走 stdin，避开命令行参数的 shell 转义问题
+      encoding: 'utf8',
+      shell: true, // 兼容 Windows 本地（claude.cmd）与 CI（claude）
+      timeout: 600_000, // 思考型模型慢，单次上限 10 分钟
+      maxBuffer: 16 * 1024 * 1024,
     },
-    body: JSON.stringify({
-      model: GLM_MODEL,
-      temperature: 0.3,
-      stream: true,
-      messages: [
-        { role: 'system', content: systemContent },
-        { role: 'user', content: transcript },
-      ],
-    }),
-  })
-  if (!res.ok) {
-    // 错误响应是普通 JSON、不是 SSE；记下 status 让上层按 4xx/5xx 决定是否重试
-    const err = new Error(`GLM 调用失败: ${res.status} ${await res.text()}`) as Error & { status?: number }
-    err.status = res.status
+  )
+  if (run.error)
+    throw new Error(`无法启动 claude CLI（先 npm install -g @anthropic-ai/claude-code）: ${run.error.message}`)
+  const text = (run.stdout ?? '').trim()
+  if (run.status !== 0 || !text) {
+    // 标 status=500 让上层 isRetryable 判定可重试：套餐限流/网络抖动重跑往往就过了
+    const err = new Error(`claude CLI 失败(exit=${run.status}): ${(run.stderr || '').trim() || '无输出'}`) as Error & { status?: number }
+    err.status = 500
     throw err
   }
-  if (!res.body)
-    throw new Error('GLM 返回空响应体')
-
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-  let content = ''
-  let chunk = await reader.read()
-  while (!chunk.done) {
-    buffer += decoder.decode(chunk.value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? '' // 末行可能被分块截断，留到下次拼接
-    for (const line of lines) {
-      const data = line.trim()
-      if (!data.startsWith('data:'))
-        continue
-      const payload = data.slice(5).trim()
-      if (!payload || payload === '[DONE]')
-        continue
-      let parsed: { choices?: { delta?: { content?: string } }[] }
-      try {
-        parsed = JSON.parse(payload)
-      }
-      catch {
-        continue // keep-alive / 非 JSON 注释行，忽略
-      }
-      const delta = parsed.choices?.[0]?.delta?.content
-      if (delta)
-        content += delta
-    }
-    chunk = await reader.read()
-  }
-  return content
+  return text
 }
 
 /** 判断错误是否值得重试：网络层失败（fetch failed / 超时 / 连接重置）或 HTTP 5xx / 429。 */

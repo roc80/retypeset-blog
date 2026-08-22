@@ -5,7 +5,7 @@
 ## 架构
 
 - **Cloudflare Worker**（`worker/telegram-inbox/`，境外免费）：收 Telegram webhook → 存 KV。
-- **GitHub Actions**（`.github/workflows/auto-week.yml`，境外 runner）：周日定时 → 读 inbox → 下图 → 调智谱 GLM → 写周记 → push `master` + build + rsync 上线。
+- **GitHub Actions**（`.github/workflows/auto-week.yml`，境外 runner）：周日定时 → 读 inbox → 下图 → 经 Claude Code CLI 调智谱 GLM（Anthropic 端点，走 Coding Plan 套餐额度）→ 写周记 → push `master` + build + rsync 上线。
 - 中国服务器（宝塔 nginx）只做静态托管，**不参与自动化**（规避 Telegram 被墙）。
 
 ## 一次性配置
@@ -21,8 +21,12 @@
 
 然后注册 webhook（命令见 worker README）。
 
-### 3. 智谱 GLM
-到 [open.bigmodel.cn](https://open.bigmodel.cn) 申请 `GLM_API_KEY`。默认模型 `glm-5.1`，可用仓库 Secret `GLM_MODEL` 覆盖（如 `glm-4-flash`）。
+### 3. 智谱 GLM Coding Plan
+订阅 [GLM Coding Plan](https://www.bigmodel.cn/glm-coding)（包月/包年套餐），在 **个人编程套餐 → 套餐概览 → 新建 API Key** 拿到套餐 Key（注意：不是平台普通 API Key）。
+
+生成正文走 Claude Code CLI（官方指定工具）→ 智谱 Anthropic 协议端点 `https://open.bigmodel.cn/api/anthropic`，**消耗套餐额度**；不要直连 `/api/paas/v4/chat/completions` 标准端点——那是按量计费通道，与套餐无关（且会 429）。
+
+默认模型 `glm-5.1`，可用仓库 Secret `GLM_MODEL` 覆盖（如 `glm-5.3`）。
 
 ### 4. GitHub 仓库 Secrets
 在仓库 **Settings → Secrets and variables → Actions** 添加：
@@ -32,8 +36,8 @@
 | `WORKER_URL` | Worker 地址 |
 | `WORKER_SECRET` | /inbox 鉴权串 |
 | `TG_BOT_TOKEN` | Bot token |
-| `GLM_API_KEY` | 智谱 key |
-| `GLM_MODEL` | （可选）如 `glm-5.1` / `glm-4-flash`，留空用默认 |
+| `GLM_CODING_KEY` | 智谱 Coding Plan 套餐 Key（workflow 里映射为 `ANTHROPIC_AUTH_TOKEN`） |
+| `GLM_MODEL` | （可选）如 `glm-5.1` / `glm-5.3`，留空用默认 |
 
 > `SSH_HOST` / `SSH_USERNAME` / `SSH_PRIVATE_KEY` 已存在（部署用），无需新增。
 
