@@ -16,6 +16,8 @@
  *   ANTHROPIC_BASE_URL          — https://open.bigmodel.cn/api/anthropic（智谱 Anthropic 协议端点）
  *   ANTHROPIC_AUTH_TOKEN        — 智谱 Coding Plan 套餐 Key，由 claude CLI 读取（走套餐额度，不按量计费）
  *   GLM_MODEL (可选)            — 传给 claude CLI 的 --model；默认 glm-5.1
+ *   WEEK_SPEC (可选)           — 周参数：空=默认（周五起取本周，否则上周）；-N=N 周前；2026-W33=指定 ISO 周
+ *                              （本地也可用第 1 个命令行参数传入，优先级高于环境变量）
  *   TZ                          — 由 workflow 设为 Asia/Shanghai，让 dayjs 取北京时间
  *
  * 本周 inbox 为空时不写文件、不提交（避免空周记）。
@@ -50,6 +52,8 @@ const TG_BOT_TOKEN = requireEnv('TG_BOT_TOKEN')
 // claude CLI 自己读 ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN 连智谱；这里只做 fail-fast，缺 Key 直接报错
 requireEnv('ANTHROPIC_AUTH_TOKEN')
 const GLM_MODEL = process.env.GLM_MODEL || 'glm-5.1'
+// 周参数：命令行参数优先（本地 `pnpm tsx scripts/generate-week.ts 2026-W33`），其次 WEEK_SPEC 环境变量（CI）
+const WEEK_SPEC = process.argv[2] ?? process.env.WEEK_SPEC ?? ''
 
 interface TgPhotoSize {
   file_id: string
@@ -289,22 +293,55 @@ function resolveTarget(refDayjs: dayjs.Dayjs): { fullPath: string, title: string
   return { fullPath: join(weeksDir, `${title}.md`), title, abbrlink }
 }
 
-async function main(): Promise<void> {
-  // 决定使用哪一周：仅当当前是本周的周五（含）到周日时，才取本周；否则取上周（周一—周日）
+/**
+ * 由 ISO 年 + 周号取该周内的一天（用于定位目标周）。
+ * 锚定 1 月 4 日（ISO 8601 保证它恒在第 1 周）：isoWeek 的 setter 是按 7 天平移、保持星期几不变，
+ * 拿「今天」当锚点会在跨年边界错位（如 12-31 的 isoWeek 可能已是次年的 W01）。
+ * 回验 isoWeekYear/isoWeek 防 W53 溢出（52 周的年份给 53 会滑到下一年 W01）与 W0 之类非法值。
+ */
+function dayOfIsoWeek(year: number, week: number): dayjs.Dayjs {
+  const ref = dayjs(`${year}-01-04`).isoWeek(week)
+  if (ref.isoWeekYear() !== year || ref.isoWeek() !== week) {
+    const maxWeek = dayjs(`${year}-12-28`).isoWeek() // 12-28 恒在该年最后一个 ISO 周
+    throw new Error(`❌ ${year} 年不存在 ISO 第 ${week} 周（该年共 ${maxWeek} 周）`)
+  }
+  return ref
+}
+
+/**
+ * 解析周参数为目标周的参考日：
+ * 空 → 默认逻辑（周五/六/日取本周，其余取上周，与周日 cron 一致）；
+ * -N → 从现在回退 N 周；YYYY-Www → 指定 ISO 周（如 2026-W33）。
+ */
+function resolveTargetRef(spec: string): dayjs.Dayjs {
   const now = dayjs()
-  const dow = now.day() // Sunday=0, Monday=1, ..., Saturday=6
-  const isoDay = dow === 0 ? 7 : dow // ISO weekday: Monday=1 ... Sunday=7
-  const useCurrentWeek = isoDay >= 5 // Fri(5), Sat(6), Sun(7)
-  const targetRef = useCurrentWeek ? now : now.subtract(7, 'day')
+  if (!spec) {
+    const dow = now.day() // Sunday=0, Monday=1, ..., Saturday=6
+    const isoDay = dow === 0 ? 7 : dow // ISO weekday: Monday=1 ... Sunday=7
+    return isoDay >= 5 ? now : now.subtract(7, 'day') // Fri(5), Sat(6), Sun(7) 取本周
+  }
+  if (/^-\d+$/.test(spec))
+    return now.subtract(Number.parseInt(spec, 10) * 7, 'day')
+  const m = /^(\d{4})-W(\d{1,2})$/.exec(spec)
+  if (!m)
+    throw new Error(`❌ 无效周参数: "${spec}"（支持 -1 / 2026-W33 两种格式）`)
+  return dayOfIsoWeek(Number(m[1]), Number(m[2]))
+}
+
+async function main(): Promise<void> {
+  // 决定目标周：WEEK_SPEC 为空走默认（与周日 cron 一致）；否则按 -N / YYYY-Www
+  const targetRef = resolveTargetRef(WEEK_SPEC)
+  const targetLabel = `${targetRef.isoWeekYear()}-W${String(targetRef.isoWeek()).padStart(2, '0')}`
+  console.log(`🎯 目标周: ${targetLabel}${WEEK_SPEC ? ` (周参数=${WEEK_SPEC})` : '（默认）'}`)
 
   // 1. 读取消息并按目标 ISO 周 过滤（inbox 不清空，跨周消息自动排除，保证幂等）
   const all = await fetchInbox()
   const messages = all.filter(msg => isIsoWeekOf(msg.date, targetRef))
   if (messages.length === 0) {
-    console.log(`ℹ️  目标周 (${useCurrentWeek ? '本周' : '上周'}) inbox 为空（历史消息 ${all.length} 条），跳过生成。`)
+    console.log(`ℹ️  目标周 (${targetLabel}) inbox 为空（历史消息 ${all.length} 条），跳过生成。`)
     return
   }
-  console.log(`📩读取到 ${all.length} 条消息，目标周占 ${messages.length} 条 (useCurrentWeek=${useCurrentWeek})`)
+  console.log(`📩 读取到 ${all.length} 条消息，目标周 (${targetLabel}) 占 ${messages.length} 条`)
 
   // 2. 算目标文件（周记名 = 真实周次）；图片年份与之保持一致
   const year = String(targetRef.isoWeekYear())

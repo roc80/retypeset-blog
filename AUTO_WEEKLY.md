@@ -4,7 +4,7 @@
 
 ## 架构
 
-- **Cloudflare Worker**（`worker/telegram-inbox/`，境外免费）：收 Telegram webhook → 存 KV。
+- **Cloudflare Worker**（`worker/telegram-inbox/`，境外免费）：收 Telegram webhook → 存 KV；识别 `/genweek` 命令 → 经 fine-grained PAT 触发 workflow_dispatch（手动生成全程不开 GitHub 网页）。
 - **GitHub Actions**（`.github/workflows/auto-week.yml`，境外 runner）：周日定时 → 读 inbox → 下图 → 经 Claude Code CLI 调智谱 GLM（Anthropic 端点，走 Coding Plan 套餐额度）→ 写周记 → push `master` + build + rsync 上线。
 - 中国服务器（宝塔 nginx）只做静态托管，**不参与自动化**（规避 Telegram 被墙）。
 
@@ -41,12 +41,21 @@
 
 > `SSH_HOST` / `SSH_USERNAME` / `SSH_PRIVATE_KEY` 已存在（部署用），无需新增。
 
+### 5. Telegram 命令触发（/genweek，可选）
+
+1. 查 chat_id：给 bot 发条消息 → `curl -H "Authorization: Bearer <WORKER_SECRET>" <WORKER_URL>/inbox` 看 `chat.id` → 填进 `worker/telegram-inbox/wrangler.toml` 的 `[vars] TG_OWNER_CHAT_ID`
+2. 建 fine-grained PAT：GitHub → Settings → Developer settings → Fine-grained personal access tokens → Repository access 仅选 `roc80/retypeset-blog` → Permissions 仅 **Actions: Read and write** → Expiration 建议 No expiration（过期后命令会静默失败）
+3. `cd worker/telegram-inbox` 后依次 `npx wrangler secret put TG_BOT_TOKEN`、`npx wrangler secret put GH_PAT`，再 `npx wrangler deploy`（webhook 路径未变，无需重新 setWebhook）
+
+用法：私聊发 `/genweek`（默认周）、`/genweek -1`（上周）、`/genweek 2026-W33`（指定 ISO 周），bot 秒回「🚀 已触发」+ 进度链接；10 分钟防抖，重复 run 被 workflow `concurrency` 取消。
+
 ## 验证
 
 1. 给 Bot 发几条文字 + 图片。
 2. 仓库 → Actions → **Auto Weekly Journal** → **Run workflow**（手动触发）。
 3. 看 run 日志：读到 N 条消息、下图、GLM 调用、写文件、push、build、rsync。
 4. 打开 `https://rocli.cn/weeks/<abbrlink>/` 确认上线；`/weeks/` 列表应出现新条目。
+5. （配好 /genweek 后）Telegram 发 `/genweek` → 秒回 🚀 → Actions 出现 workflow_dispatch run → 日志有 `🎯 目标周: …` → 生成上线。
 
 之后每周日 23:00 自动运行（GitHub cron 可能有几分钟延迟，属正常；仓库 60 天无活动会被暂停定时，活跃仓库不受影响）。
 
@@ -56,3 +65,4 @@
 - 自动生成的周记暂无 OG 图（仓库不生成 `/og/*.png`，分享时缩略图会 404；后续可接入 `astro-og-canvas`）。
 - 周编号按真实周次（ISO week），如 2026-06-28 → 2026-Week26。
 - 仅处理文字 + 图片；视频/语音/文件暂跳过。
+- `/genweek` 指定周受 KV 14 天 TTL 限制（太久远的周查不到消息会空跑）；PAT 过期后命令失败（建议 No expiration）。

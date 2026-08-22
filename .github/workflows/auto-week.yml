@@ -5,10 +5,22 @@ on:
   schedule:
     - cron: '0 21 * * 0'
   workflow_dispatch:
+    inputs:
+      week:
+        description: '周参数：留空=默认逻辑（周五起取本周，否则上周） | -1=上周 | 2026-W33=指定 ISO 周'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write   # 允许 GITHUB_TOKEN 把生成的源文件推回 master
   actions: write    # 允许 GITHUB_TOKEN 触发 deploy.yml（workflow_dispatch）
+
+# 同一时间只跑一个，后来的取消先到的（重复 /genweek 不浪费 GLM 套餐额度与 CI 分钟；
+# 被取消的 run 尚未走到 commit/push，无半成品状态）
+concurrency:
+  group: auto-week
+  cancel-in-progress: true
 
 jobs:
   generate:
@@ -43,6 +55,7 @@ jobs:
           ANTHROPIC_BASE_URL: https://open.bigmodel.cn/api/anthropic
           ANTHROPIC_AUTH_TOKEN: ${{ secrets.GLM_CODING_KEY }}
           GLM_MODEL: ${{ secrets.GLM_MODEL }}   # 可选，留空则默认 glm-5.1
+          WEEK_SPEC: ${{ inputs.week }}   # /genweek 传入的周参数；schedule 触发时为空 → 默认逻辑
         run: pnpm tsx scripts/generate-week.ts
 
       - name: 推送生成的源文件到 master

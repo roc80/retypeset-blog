@@ -11,3 +11,10 @@ id = "1818bbe4f0984f958697b2ae6bb5e836"
 # 2) 部署后设置 secret（不要写进本文件，避免泄露）:
 #      npx wrangler secret put SECRET_TOKEN    # webhook 路径校验，自定义随机串
 #      npx wrangler secret put WORKER_SECRET   # /inbox 端点的 Bearer，与 GitHub Secret 同值
+#      npx wrangler secret put TG_BOT_TOKEN    # 出站回复消息，与 GitHub Secret 同值
+#      npx wrangler secret put GH_PAT          # fine-grained PAT（仅 roc80/retypeset-blog，Actions: Read and write）
+
+# 3) 命令白名单（chat id 非敏感，放 vars 随 git 版本化；改动需重新 deploy 生效）:
+#      查法：给 bot 发条消息后 curl -H "Authorization: Bearer <WORKER_SECRET>" <WORKER_URL>/inbox 看 chat.id
+[vars]
+TG_OWNER_CHAT_ID = "123456789" # 换成你的 chat id
